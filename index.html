@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Spooky Feast: Cute Ghost Sorter</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@500;700;800&display=swap');
+    
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    body {
+      font-family: 'Quicksand', sans-serif;
+      background: #090D1A;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    .font-game {
+      font-family: 'Fredoka One', cursive;
+    }
+
+    /* Floating star animations */
+    .star {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle linear infinite;
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.15; transform: scale(0.7); }
+      50% { opacity: 0.9; transform: scale(1.2); }
+    }
+
+    .ghost-damage {
+      filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.9)) saturate(2);
+      animation: shake 0.25s cubic-bezier(.36,.07,.19,.97) both;
+    }
+
+    @keyframes shake {
+      10%, 90% { transform: translate3d(-2px, 0, 0); }
+      20%, 80% { transform: translate3d(4px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+      40%, 60% { transform: translate3d(6px, 0, 0); }
+    }
+
+    .bucket-full-pulse {
+      animation: pulse-danger 0.6s infinite alternate;
+    }
+
+    @keyframes pulse-danger {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      100% { transform: scale(1.05); box-shadow: 0 0 20px 8px rgba(239, 68, 68, 0.9); }
+    }
+
+    /* Floating combat/score text */
+    .floating-text {
+      position: absolute;
+      font-family: 'Fredoka One', cursive;
+      font-size: 16px;
+      pointer-events: none;
+      animation: floatUpFade 0.8s ease-out forwards;
+      z-index: 40;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    }
+
+    @keyframes floatUpFade {
+      0% { opacity: 1; transform: translateY(0) scale(0.9); }
+      100% { opacity: 0; transform: translateY(-45px) scale(1.2); }
+    }
+
+    /* Custom Scrollbar for Shop tabs */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+      border-radius: 8px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body class="w-screen h-screen flex flex-col items-center justify-between p-2 md:p-4 select-none relative overflow-hidden">
+
+  <!-- Background Animated Stars Canvas -->
+  <div id="starfield" class="absolute inset-0 pointer-events-none z-0"></div>
+
+  <!-- Floating Text Layer Container -->
+  <div id="floating-text-container" class="absolute inset-0 pointer-events-none overflow-hidden z-30"></div>
+
+  <!-- Header HUD Bar -->
+  <header class="w-full max-w-md z-10 flex items-center justify-between bg-slate-900/85 backdrop-blur border border-slate-700/60 rounded-2xl p-2.5 shadow-lg gap-1.5">
+    <!-- HP Bar -->
+    <div class="flex flex-col w-1/4">
+      <div class="flex items-center justify-between text-[10px] font-bold text-slate-300 mb-0.5">
+        <span>HP</span>
+        <span id="hp-text">100%</span>
+      </div>
+      <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+        <div id="hp-bar" class="h-full bg-gradient-to-r from-emerald-400 to-green-500 transition-all duration-300 w-full"></div>
+      </div>
+    </div>
+
+    <!-- Score & Multiplier -->
+    <div class="text-center px-1">
+      <div id="score-label" class="text-[9px] text-indigo-300 uppercase font-extrabold tracking-wider">Score</div>
+      <div id="score" class="text-xl font-game text-amber-300 tracking-wide drop-shadow">0</div>
+      <div id="combo-badge" class="text-[9px] font-bold text-pink-400 opacity-0 transition-opacity">2x COMBO!</div>
+    </div>
+
+    <!-- Queue Pressure Bar -->
+    <div class="flex flex-col w-1/4">
+      <div class="flex items-center justify-between text-[10px] font-bold text-slate-300 mb-0.5">
+        <span id="pressure-label">PRESS.</span>
+        <span id="queue-text" class="text-cyan-400">0%</span>
+      </div>
+      <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+        <div id="queue-bar" class="h-full bg-cyan-400 transition-all duration-200 w-0"></div>
+      </div>
+    </div>
+
+    <!-- Gameplay Pause / Skin Change Menu Button -->
+    <button onclick="openInGameMenu()" class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white p-2 rounded-xl border border-indigo-400/50 shadow font-bold text-xs flex items-center gap-1 shrink-0">
+      <span>⚙️</span>
+      <span class="hidden sm:inline">MENU</span>
+    </button>
+  </header>
+
+  <!-- Main Playing Field Container -->
+  <main class="relative w-full max-w-md flex-1 my-2 z-10 flex items-center justify-center overflow-hidden">
+    
+    <!-- Canvas for Conveyor Track & Cute Ghost -->
+    <canvas id="gameCanvas" class="w-full h-full block rounded-2xl border border-slate-800/80 shadow-2xl bg-slate-950/50"></canvas>
+
+    <!-- Bucket Overlay Left: TOYS (Blue Theme) -->
+    <div id="left-bucket" onclick="emptyBucket('left')" class="absolute left-2 bottom-3 w-24 h-28 bg-slate-900/90 border-2 border-blue-500/80 rounded-2xl flex flex-col items-center justify-between p-2 cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/20 backdrop-blur z-20">
+      <div class="text-[11px] font-bold text-blue-300 text-center uppercase tracking-tight flex items-center gap-1">
+        <span>🧸 TOYS</span>
+      </div>
+      <div class="w-full flex-1 flex flex-col-reverse justify-start gap-0.5 my-1 px-1 overflow-hidden" id="left-bucket-items"></div>
+      <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden border border-blue-900">
+        <div id="left-bucket-fill" class="h-full bg-blue-500 transition-all w-0"></div>
+      </div>
+      <span id="left-bucket-label" class="text-[9px] text-blue-400 font-bold mt-0.5">CLICK TO EMPTY</span>
+    </div>
+
+    <!-- Bucket Overlay Right: TRASH / RECYCLE (Amber Theme) -->
+    <div id="right-bucket" onclick="emptyBucket('right')" class="absolute right-2 bottom-3 w-24 h-28 bg-slate-900/90 border-2 border-amber-500/80 rounded-2xl flex flex-col items-center justify-between p-2 cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-lg shadow-amber-500/20 backdrop-blur z-20">
+      <div class="text-[11px] font-bold text-amber-300 text-center uppercase tracking-tight flex items-center gap-1">
+        <span>♻️ TRASH</span>
+      </div>
+      <div class="w-full flex-1 flex flex-col-reverse justify-start gap-0.5 my-1 px-1 overflow-hidden" id="right-bucket-items"></div>
+      <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden border border-amber-900">
+        <div id="right-bucket-fill" class="h-full bg-amber-500 transition-all w-0"></div>
+      </div>
+      <span id="right-bucket-label" class="text-[9px] text-amber-400 font-bold mt-0.5">CLICK TO EMPTY</span>
+    </div>
+
+  </main>
+
+  <!-- Power-Up Active Inventory Bar -->
+  <div class="w-full max-w-md z-10 flex items-center justify-between bg-slate-900/90 backdrop-blur border border-purple-500/50 rounded-2xl p-2 mb-2 shadow-lg">
+    <div class="flex items-center gap-2">
+      <div id="powerup-icon-box" class="w-9 h-9 rounded-xl bg-slate-950 border border-purple-500/60 flex items-center justify-center text-lg shadow-inner">⚡</div>
+      <div>
+        <div class="text-[9px] text-purple-300 font-extrabold uppercase tracking-wide">Active Power-Up</div>
+        <div id="powerup-name" class="text-xs font-bold text-slate-200">None Collected</div>
+      </div>
+    </div>
+    <button id="btn-powerup" onclick="usePowerUp()" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-95 text-white font-game text-xs py-2 px-4 rounded-xl border border-purple-400/50 shadow opacity-50 cursor-not-allowed transition">
+      USE POWER-UP (P)
+    </button>
+  </div>
+
+  <!-- Interactive Color-Matched Controls Bar -->
+  <footer class="w-full max-w-md z-10 flex items-center justify-between gap-2 mb-1">
+    <button id="btn-left" onclick="handleAction('left')" class="flex-1 bg-gradient-to-b from-blue-500 to-blue-700 hover:from-blue-400 hover:to-blue-600 active:translate-y-0.5 text-white py-3 px-1.5 rounded-2xl font-game text-xs sm:text-sm border-b-4 border-blue-900 shadow-lg flex flex-col items-center justify-center transition">
+      <span class="text-[10px] text-blue-200">SWIPE LEFT (🠔)</span>
+      <span>🧸 TOYS</span>
+    </button>
+
+    <button id="btn-eat" onclick="handleAction('eat')" class="flex-1 bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 active:translate-y-0.5 text-white py-3.5 px-1.5 rounded-2xl font-game text-sm sm:text-base border-b-4 border-emerald-950 shadow-xl shadow-emerald-500/20 flex flex-col items-center justify-center transition">
+      <span class="text-[9px] text-emerald-200 tracking-wider">SPACE / DOWN</span>
+      <span class="tracking-wide">😋 EAT FOOD</span>
+    </button>
+
+    <button id="btn-right" onclick="handleAction('right')" class="flex-1 bg-gradient-to-b from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 active:translate-y-0.5 text-white py-3 px-1.5 rounded-2xl font-game text-xs sm:text-sm border-b-4 border-amber-900 shadow-lg flex flex-col items-center justify-center transition">
+      <span class="text-[10px] text-amber-200">SWIPE RIGHT (🠖)</span>
+      <span>♻️ TRASH</span>
+    </button>
+  </footer>
+
+  <!-- Start / Pause / Game Over Modals Overlay -->
+  <div id="modal-overlay" class="absolute inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+    
+    <!-- Start & Customizer Screen -->
+    <div id="screen-start" class="bg-slate-900 border border-indigo-500/40 p-5 rounded-3xl max-w-sm w-full text-center shadow-2xl relative overflow-hidden flex flex-col max-h-[92vh]">
+      
+      <!-- Top Title Bar & Live Preview Header -->
+      <div class="shrink-0 flex items-center justify-between bg-slate-950/80 p-2.5 rounded-2xl border border-slate-800 mb-3">
+        <div class="text-left">
+          <h1 class="text-lg font-game text-transparent bg-clip-text bg-gradient-to-r from-sky-200 via-indigo-300 to-pink-300">SPOOKY FEAST</h1>
+          <p class="text-[10px] text-slate-400">Customizer & Shop</p>
+        </div>
+        <!-- Live Preview Canvas Box -->
+        <div class="w-16 h-16 bg-slate-900 rounded-xl border border-indigo-500/50 flex items-center justify-center relative overflow-hidden shadow-inner">
+          <canvas id="previewCanvas" width="64" height="64" class="w-full h-full"></canvas>
+        </div>
+      </div>
+
+      <!-- Menu Tabs Navigation -->
+      <div class="grid grid-cols-5 bg-slate-950 p-1 rounded-xl mb-3 shrink-0 border border-slate-800 text-[10px]">
+        <button onclick="switchTab('rules')" id="tab-btn-rules" class="py-1.5 font-bold rounded-lg bg-indigo-600 text-white transition">Rules</button>
+        <button onclick="switchTab('skins')" id="tab-btn-skins" class="py-1.5 font-bold rounded-lg text-slate-400 hover:text-white transition">👻 Ghost</button>
+        <button onclick="switchTab('track')" id="tab-btn-track" class="py-1.5 font-bold rounded-lg text-slate-400 hover:text-white transition">🛤️ Line</button>
+        <button onclick="switchTab('accs')" id="tab-btn-accs" class="py-1.5 font-bold rounded-lg text-slate-400 hover:text-white transition">🎩 Hats</button>
+        <button onclick="switchTab('achievements')" id="tab-btn-achievements" class="py-1.5 font-bold rounded-lg text-slate-400 hover:text-white transition">🏆 Badges</button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div class="flex-1 overflow-y-auto pr-1 text-left space-y-3 mb-3">
+        
+        <!-- Tab 1: Rules -->
+        <div id="tab-rules" class="space-y-2.5 text-xs text-slate-300">
+          <div class="bg-slate-950/70 rounded-2xl p-3 border border-slate-800 space-y-2">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block shrink-0"></span>
+              <span><b>GREEN = FOOD:</b> Press <b>EAT</b> to feed ghost!</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-blue-500 inline-block shrink-0"></span>
+              <span><b>BLUE = TOYS:</b> Swipe <b>LEFT</b> into Left Bin.</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-amber-500 inline-block shrink-0"></span>
+              <span><b>AMBER = TRASH:</b> Swipe <b>RIGHT</b> into Right Bin.</span>
+            </div>
+            <div class="flex items-center gap-2 text-purple-300 border-t border-slate-800/80 pt-2">
+              <span>⚡ Eat Power-Up items to trigger special abilities!</span>
+            </div>
+            <div class="flex items-center gap-2 text-pink-300">
+              <span>🦇 Shoo away flying bats before they steal HP!</span>
+            </div>
+            <div class="flex items-center gap-2 text-rose-300 pt-1">
+              <span>🗑️ Click full bins to empty them!</span>
+            </div>
+            
+            <!-- Game Mode Selector inside Rules -->
+            <div class="border-t border-slate-800/80 pt-2.5 mt-2">
+              <div class="text-[11px] font-bold text-indigo-300 uppercase mb-1.5">Select Game Mode</div>
+              <div class="grid grid-cols-2 gap-2">
+                <button onclick="setGameMode('arcade')" id="mode-btn-arcade" class="p-2 rounded-xl border text-center font-bold text-xs bg-indigo-950 border-indigo-500 text-white transition">
+                  🎮 Arcade (HP)
+                </button>
+                <button onclick="setGameMode('timed')" id="mode-btn-timed" class="p-2 rounded-xl border text-center font-bold text-xs bg-slate-950 border-slate-800 text-slate-400 transition">
+                  ⏱️ 60s Time Attack
+                </button>
+              </div>
+            </div>
+
+            <!-- Accessibility Assist Toggle -->
+            <div class="border-t border-slate-800/80 pt-2 mt-2 flex items-center justify-between">
+              <span class="font-bold text-slate-200">Shape Assist (Colorblind)</span>
+              <button onclick="toggleShapeAssist()" id="btn-shape-assist" class="px-3 py-1 rounded-lg bg-slate-800 text-xs font-bold text-slate-300 border border-slate-700 transition">OFF</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Ghost Shapes & Color Skins (20 Variants) -->
+        <div id="tab-skins" class="hidden space-y-2">
+          <div class="text-[11px] text-indigo-300 font-bold uppercase tracking-wider mb-1">Select Ghost Shape & Skin (20)</div>
+          <div class="grid grid-cols-2 gap-2" id="ghost-skins-container"></div>
+        </div>
+
+        <!-- Tab 3: Conveyor Line Track Shapes & Themes (20 Variants) -->
+        <div id="tab-track" class="hidden space-y-2">
+          <div class="text-[11px] text-indigo-300 font-bold uppercase tracking-wider mb-1">Select Silhouette Track (20)</div>
+          <div class="grid grid-cols-1 gap-2" id="track-skins-container"></div>
+        </div>
+
+        <!-- Tab 4: Accessories / Hats (30 Variants) -->
+        <div id="tab-accs" class="hidden space-y-2">
+          <div class="text-[11px] text-indigo-300 font-bold uppercase tracking-wider mb-1">Select Hat / Accessory (30)</div>
+          <div class="grid grid-cols-2 gap-2" id="accs-container"></div>
+        </div>
+
+        <!-- Tab 5: Achievements & Badges -->
+        <div id="tab-achievements" class="hidden space-y-2">
+          <div class="text-[11px] text-indigo-300 font-bold uppercase tracking-wider mb-1">Achievements & Badges</div>
+          <div class="space-y-2" id="achievements-container"></div>
+        </div>
+
+      </div>
+
+      <!-- Play / Resume Buttons -->
+      <div class="flex gap-2 shrink-0">
+        <button id="btn-resume-game" onclick="resumeGame()" class="hidden flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-game text-base py-3 rounded-2xl border-b-4 border-slate-950 transition">
+          RESUME ⏸️
+        </button>
+        <button onclick="startGame()" id="btn-start-game" class="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-game text-lg py-3.5 rounded-2xl border-b-4 border-indigo-900 shadow-xl transition transform active:scale-98">
+          PLAY NOW 🚀
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="screen-gameover" class="hidden bg-slate-900 border border-rose-500/40 p-6 rounded-3xl max-w-sm w-full text-center shadow-2xl">
+      <div class="text-4xl mb-2">😵</div>
+      <h2 class="text-2xl font-game text-rose-400 mb-1">GAME OVER</h2>
+      <p id="gameover-reason" class="text-xs text-slate-400 mb-4">You took too much damage!</p>
+
+      <div class="bg-slate-950/80 rounded-2xl p-4 mb-5 border border-slate-800 flex justify-around items-center">
+        <div>
+          <div class="text-[10px] text-slate-400 font-bold uppercase">Final Score</div>
+          <div id="final-score" class="text-2xl font-game text-amber-300">0</div>
+        </div>
+        <div class="h-8 w-px bg-slate-800"></div>
+        <div>
+          <div class="text-[10px] text-slate-400 font-bold uppercase">Best Score</div>
+          <div id="best-score" class="text-2xl font-game text-indigo-300">0</div>
+        </div>
+      </div>
+
+      <button onclick="startGame()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-game text-lg py-3.5 rounded-2xl border-b-4 border-emerald-900 shadow-xl transition transform active:scale-98">
+        TRY AGAIN 🔄
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Audio Synthesizer Script -->
+  <script>
+    class SoundEffects {
+      constructor() { this.ctx = null; this.bgmOsc = null; this.isBgmPlaying = false; }
+      init() {
+        if (!this.ctx) {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+      }
+      playMunch() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.exponentialRampToValueAtTime(420, now + 0.1);
+        osc.frequency.exponentialRampToValueAtTime(130, now + 0.2);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.22);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.22);
+      }
+      playSwipe() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(650, now + 0.08);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.08);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.08);
+      }
+      playError() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.setValueAtTime(90, now + 0.1);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.25);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.25);
+      }
+      playEmptyBucket() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(500, now);
+        osc.frequency.exponentialRampToValueAtTime(900, now + 0.15);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.2);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.2);
+      }
+      playPowerUp() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.25);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.3);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.3);
+      }
+      playBatShoo() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(200, now + 0.12);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.12);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.12);
+      }
+    }
+
+    const sound = new SoundEffects();
+  </script>
+
+  <!-- Main Game & Shop Logic Script -->
+  <script>
+    const ITEM_TYPES = { FOOD: 'food', TOY: 'toy', RECYCLE: 'recycle', POWERUP: 'powerup' };
+
+    const CATEGORY_COLORS = {
+      [ITEM_TYPES.FOOD]: { main: '#10B981', glow: 'rgba(16, 185, 129, 0.4)', name: 'EDIBLE', symbol: '▲' },
+      [ITEM_TYPES.TOY]: { main: '#3B82F6', glow: 'rgba(59, 130, 246, 0.4)', name: 'TOY', symbol: '■' },
+      [ITEM_TYPES.RECYCLE]: { main: '#F59E0B', glow: 'rgba(245, 158, 11, 0.4)', name: 'TRASH', symbol: '●' },
+      [ITEM_TYPES.POWERUP]: { main: '#A855F7', glow: 'rgba(168, 85, 247, 0.5)', name: 'PWR-UP', symbol: '★' }
+    };
+
+    const ITEMS_CATALOG = [
+      { name: 'Pizza', emoji: '🍕', category: ITEM_TYPES.FOOD },
+      { name: 'Donut', emoji: '🍩', category: ITEM_TYPES.FOOD },
+      { name: 'Cake', emoji: '🍰', category: ITEM_TYPES.FOOD },
+      { name: 'Apple', emoji: '🍎', category: ITEM_TYPES.FOOD },
+      { name: 'Burger', emoji: '🍔', category: ITEM_TYPES.FOOD },
+      { name: 'Candy', emoji: '🍬', category: ITEM_TYPES.FOOD },
+      { name: 'Teddy', emoji: '🧸', category: ITEM_TYPES.TOY },
+      { name: 'Duckie', emoji: '🦆', category: ITEM_TYPES.TOY },
+      { name: 'Robot', emoji: '🤖', category: ITEM_TYPES.TOY },
+      { name: 'Ball', emoji: '⚽', category: ITEM_TYPES.TOY },
+      { name: 'Doll', emoji: '🪆', category: ITEM_TYPES.TOY },
+      { name: 'Battery', emoji: '🔋', category: ITEM_TYPES.RECYCLE },
+      { name: 'Can', emoji: '🥫', category: ITEM_TYPES.RECYCLE },
+      { name: 'Gem', emoji: '💎', category: ITEM_TYPES.RECYCLE },
+      { name: 'Clock', emoji: '⏰', category: ITEM_TYPES.RECYCLE },
+      { name: 'Key', emoji: '🔑', category: ITEM_TYPES.RECYCLE }
+    ];
+
+    // 6 Distinct Power-Ups
+    const POWERUPS_CATALOG = [
+      { id: 'speed', name: 'Speed Boost', emoji: '⚡', desc: 'Faster score gains & reactions' },
+      { id: 'magnet', name: 'Auto Magnet', emoji: '🧲', desc: 'Instantly sorts front item safely' },
+      { id: 'bomb', name: 'Queue Bomb', emoji: '💣', desc: 'Clears top 3 items from queue' },
+      { id: 'heal', name: 'HP Heart', emoji: '❤️', desc: 'Restores +25% HP' },
+      { id: 'freeze', name: 'Time Freeze', emoji: '⏱️', desc: 'Slows down conveyor for 6s' },
+      { id: 'multiplier', name: 'Star Multiplier', emoji: '⭐', desc: 'Double points for 8s' }
+    ];
+
+    let activePowerUp = null; // Stored power-up object
+
+    const BUCKET_MAX = 10; 
+
+    // 20 Distinct Ghost Shape & Color Skins
+    const GHOST_SKINS = [
+      { id: 'classic', name: 'Classic White', shape: 'standard', topColor: '#FFFFFF', midColor: '#E0F2FE', botColor: '#BAE6FD', strokeColor: '#93C5FD', glowColor: 'rgba(224, 242, 254, 0.35)' },
+      { id: 'skinny', name: 'Skinny Casper', shape: 'skinny', topColor: '#F8FAFC', midColor: '#CBD5E1', botColor: '#94A3B8', strokeColor: '#64748B', glowColor: 'rgba(203, 213, 225, 0.35)' },
+      { id: 'chubby', name: 'Chubby Boo', shape: 'chubby', topColor: '#FEF08A', midColor: '#FDE047', botColor: '#EAB308', strokeColor: '#CA8A04', glowColor: 'rgba(253, 224, 71, 0.4)' },
+      { id: 'cubby', name: 'Cubby Square', shape: 'cubby', topColor: '#99F6E4', midColor: '#5EEAD4', botColor: '#2DD4BF', strokeColor: '#0D9488', glowColor: 'rgba(94, 234, 212, 0.4)' },
+      { id: 'pink', name: 'Neon Pink', shape: 'standard', topColor: '#F472B6', midColor: '#DB2777', botColor: '#9D174D', strokeColor: '#FEE2E2', glowColor: 'rgba(244, 114, 182, 0.45)' },
+      { id: 'shadow', name: 'Midnight Shadow', shape: 'standard', topColor: '#334155', midColor: '#1E293B', botColor: '#0F172A', strokeColor: '#64748B', glowColor: 'rgba(99, 102, 241, 0.35)' },
+      { id: 'gold', name: 'Golden Spirit', shape: 'chubby', topColor: '#FDE047', midColor: '#EAB308', botColor: '#CA8A04', strokeColor: '#FEF08A', glowColor: 'rgba(250, 204, 21, 0.45)' },
+      { id: 'spiky', name: 'Spiky Phantom', shape: 'spiky', topColor: '#C084FC', midColor: '#A855F7', botColor: '#7E22CE', strokeColor: '#E9D5FF', glowColor: 'rgba(168, 85, 247, 0.4)' },
+      { id: 'bloated', name: 'Bloated Blob', shape: 'bloated', topColor: '#86EFAC', midColor: '#4ADE80', botColor: '#16A34A', strokeColor: '#DCFCE7', glowColor: 'rgba(74, 222, 128, 0.4)' },
+      { id: 'tall', name: 'Tall Specter', shape: 'tall', topColor: '#93C5FD', midColor: '#60A5FA', botColor: '#2563EB', strokeColor: '#DBEAFE', glowColor: 'rgba(96, 165, 250, 0.4)' },
+      { id: 'flat', name: 'Flat Floater', shape: 'flat', topColor: '#FCA5A5', midColor: '#F87171', botColor: '#DC2626', strokeColor: '#FEE2E2', glowColor: 'rgba(248, 113, 113, 0.4)' },
+      { id: 'wavy', name: 'Wavy Spirit', shape: 'wavy', topColor: '#FDBA74', midColor: '#FB923C', botColor: '#EA580C', strokeColor: '#FFEDD5', glowColor: 'rgba(251, 146, 60, 0.4)' },
+      { id: 'star', name: 'Star-Tailed', shape: 'star', topColor: '#F43F5E', midColor: '#E11D48', botColor: '#9F1239', strokeColor: '#FECDD3', glowColor: 'rgba(225, 29, 72, 0.4)' },
+      { id: 'bubble', name: 'Bubble Spirit', shape: 'bubble', topColor: '#38BDF8', midColor: '#0EA5E9', botColor: '#0284C7', strokeColor: '#E0F2FE', glowColor: 'rgba(14, 165, 233, 0.4)' },
+      { id: 'goth', name: 'Goth Ghoul', shape: 'skinny', topColor: '#1E1B4B', midColor: '#312E81', botColor: '#111827', strokeColor: '#818CF8', glowColor: 'rgba(79, 70, 229, 0.4)' },
+      { id: 'mint', name: 'Minty Fresh', shape: 'chubby', topColor: '#A7F3D0', midColor: '#6EE7B7', botColor: '#10B981', strokeColor: '#ECFDF5', glowColor: 'rgba(110, 231, 183, 0.4)' },
+      { id: 'lavender', name: 'Lavender Lord', shape: 'cubby', topColor: '#E9D5FF', midColor: '#D8B4FE', botColor: '#C084FC', strokeColor: '#F3E8FF', glowColor: 'rgba(216, 180, 254, 0.4)' },
+      { id: 'fire', name: 'Flame Fiend', shape: 'spiky', topColor: '#FB7185', midColor: '#F43F5E', botColor: '#BE123C', strokeColor: '#FFE4E6', glowColor: 'rgba(244, 63, 94, 0.4)' },
+      { id: 'ice', name: 'Ice Wraith', shape: 'tall', topColor: '#E0F2FE', midColor: '#BAE6FD', botColor: '#7DD3FC', strokeColor: '#F0F9FF', glowColor: 'rgba(186, 230, 253, 0.4)' },
+      { id: 'royal', name: 'Royal Phantom', shape: 'chubby', topColor: '#FDE68A', midColor: '#F59E0B', botColor: '#D97706', strokeColor: '#FEF3C7', glowColor: 'rgba(245, 158, 11, 0.4)' }
+    ];
+
+    // 20 Silhouette Conveyor Tracks
+    const TRACK_SKINS = [
+      { id: 'cat', name: '🐱 Cat Face Silhouette', capacity: 18, outer: 'rgba(251, 191, 36, 0.25)', inner: 'rgba(245, 158, 11, 0.5)', dash: '#FEF3C7' },
+      { id: 'panda', name: '🐼 Panda Face Silhouette', capacity: 18, outer: 'rgba(30, 41, 59, 0.4)', inner: 'rgba(71, 85, 105, 0.6)', dash: '#FFFFFF' },
+      { id: 'bunny', name: '🐰 Bunny Ears Silhouette', capacity: 18, outer: 'rgba(244, 114, 182, 0.25)', inner: 'rgba(236, 72, 153, 0.5)', dash: '#FCE7F3' },
+      { id: 'fox', name: '🦊 Fox Head Silhouette', capacity: 18, outer: 'rgba(249, 115, 22, 0.25)', inner: 'rgba(234, 88, 12, 0.5)', dash: '#FFEDD5' },
+      { id: 'frog', name: '🐸 Frog Eyes Silhouette', capacity: 18, outer: 'rgba(34, 197, 94, 0.25)', inner: 'rgba(22, 163, 74, 0.5)', dash: '#DCFCE7' },
+      { id: 'train', name: '🚂 Locomotive Silhouette', capacity: 20, outer: 'rgba(100, 116, 139, 0.3)', inner: 'rgba(51, 65, 85, 0.6)', dash: '#E2E8F0' },
+      { id: 'rocket', name: '🚀 Rocket Ship Silhouette', capacity: 18, outer: 'rgba(59, 130, 246, 0.25)', inner: 'rgba(37, 99, 235, 0.5)', dash: '#BFDBFE' },
+      { id: 'car', name: '🏎️ Racecar Silhouette', capacity: 18, outer: 'rgba(239, 68, 68, 0.25)', inner: 'rgba(220, 38, 38, 0.5)', dash: '#FEE2E2' },
+      { id: 'boat', name: '⛵ Sailboat Silhouette', capacity: 18, outer: 'rgba(14, 165, 233, 0.25)', inner: 'rgba(2, 132, 199, 0.5)', dash: '#E0F2FE' },
+      { id: 'plane', name: '✈️ Airplane Silhouette', capacity: 20, outer: 'rgba(99, 102, 241, 0.25)', inner: 'rgba(79, 70, 229, 0.5)', dash: '#E0E7FF' },
+      { id: 'halloween', name: '🎃 Jack-o-Lantern Silhouette', capacity: 20, outer: 'rgba(249, 115, 22, 0.3)', inner: 'rgba(194, 65, 12, 0.6)', dash: '#FED7AA' },
+      { id: 'christmas', name: '🎄 Christmas Tree Silhouette', capacity: 18, outer: 'rgba(225, 29, 72, 0.25)', inner: 'rgba(190, 18, 60, 0.5)', dash: '#FFFFFF' },
+      { id: 'valentine', name: '💘 Big Heart Silhouette', capacity: 20, outer: 'rgba(236, 72, 153, 0.25)', inner: 'rgba(219, 39, 119, 0.5)', dash: '#FBCFE8' },
+      { id: 'easter', name: '🥚 Easter Egg Silhouette', capacity: 18, outer: 'rgba(168, 85, 247, 0.25)', inner: 'rgba(147, 51, 234, 0.5)', dash: '#F3E8FF' },
+      { id: 'newyear', name: '🎆 Starburst Silhouette', capacity: 20, outer: 'rgba(234, 179, 8, 0.3)', inner: 'rgba(202, 138, 4, 0.6)', dash: '#FEF08A' },
+      { id: 'watermelon', name: '🍉 Watermelon Slice Silhouette', capacity: 18, outer: 'rgba(34, 197, 94, 0.25)', inner: 'rgba(239, 68, 68, 0.5)', dash: '#FEF2F2' },
+      { id: 'strawberry', name: '🍓 Strawberry Silhouette', capacity: 18, outer: 'rgba(244, 63, 94, 0.25)', inner: 'rgba(225, 29, 72, 0.5)', dash: '#FFE4E6' },
+      { id: 'banana', name: '🍌 Banana Curve Silhouette', capacity: 18, outer: 'rgba(250, 204, 21, 0.25)', inner: 'rgba(234, 179, 8, 0.5)', dash: '#FEFCE8' },
+      { id: 'orange', name: '🍊 Citrus Circle Silhouette', capacity: 20, outer: 'rgba(249, 115, 22, 0.25)', inner: 'rgba(234, 88, 12, 0.5)', dash: '#FFEDD5' },
+      { id: 'grape', name: '🍇 Grape Cluster Silhouette', capacity: 18, outer: 'rgba(168, 85, 247, 0.25)', inner: 'rgba(126, 34, 206, 0.5)', dash: '#F3E8FF' }
+    ];
+
+    // 30 Hats / Accessories Variants
+    const ACCESSORIES = [
+      { id: 'none', name: 'None', icon: '✨' },
+      { id: 'wizard', name: 'Wizard Hat', icon: '🧙‍♂️' },
+      { id: 'crown', name: 'Golden Crown', icon: '👑' },
+      { id: 'party', name: 'Party Cone', icon: '🎉' },
+      { id: 'halo', name: 'Angel Halo', icon: '😇' },
+      { id: 'cowboy', name: 'Cowboy Hat', icon: '🤠' },
+      { id: 'tophat', name: 'Top Hat', icon: '🎩' },
+      { id: 'cap', name: 'Baseball Cap', icon: '🧢' },
+      { id: 'pirate', name: 'Pirate Hat', icon: '🏴‍☠️' },
+      { id: 'viking', name: 'Viking Horns', icon: '🛡️' },
+      { id: 'cat', name: 'Cat Ears', icon: '🐱' },
+      { id: 'bunny', name: 'Bunny Ears', icon: '🐰' },
+      { id: 'headphones', name: 'Headphones', icon: '🎧' },
+      { id: 'sunglasses', name: 'Cool Shades', icon: '🕶️' },
+      { id: 'chef', name: 'Chef Hat', icon: '👨‍🍳' },
+      { id: 'detective', name: 'Detective Cap', icon: '🕵️‍♂️' },
+      { id: 'flower', name: 'Flower Crown', icon: '🌸' },
+      { id: 'bow', name: 'Pink Bow', icon: '🎀' },
+      { id: 'beret', name: 'French Beret', icon: '🎨' },
+      { id: 'propeller', name: 'Propeller Beanie', icon: '🚁' },
+      { id: 'grad', name: 'Graduation Cap', icon: '🎓' },
+      { id: 'tiara', name: 'Crystal Tiara', icon: '💎' },
+      { id: 'pumpkin', name: 'Pumpkin Head', icon: '🎃' },
+      { id: 'devil', name: 'Devil Horns', icon: '😈' },
+      { id: 'star', name: 'Super Star', icon: '⭐' },
+      { id: 'fire', name: 'Flame Aura', icon: '🔥' },
+      { id: 'snowflake', name: 'Ice Crystal', icon: '❄️' },
+      { id: 'clover', name: 'Lucky Clover', icon: '🍀' },
+      { id: 'headphones2', name: 'Gaming Headset', icon: '🕹️' },
+      { id: 'crown2', name: 'Diamond Crown', icon: '👑' }
+    ];
+
+    // Achievements Definition
+    const ACHIEVEMENTS_DEF = [
+      { id: 'first_sort', name: 'Spooky Novice', desc: 'Sort your first 5 items correctly', target: 5, progressKey: 'sort_count', unlocked: false },
+      { id: 'combo_master', name: 'Combo Fiend', desc: 'Reach a 5x Combo streak', target: 5, progressKey: 'max_combo', unlocked: false },
+      { id: 'high_roller', name: 'Ghost Tycoon', desc: 'Reach a score of 300 points', target: 300, progressKey: 'best_score', unlocked: false },
+      { id: 'bat_hunter', name: 'Bat Exterminator', desc: 'Shoo away 10 spooky bats', target: 10, progressKey: 'bats_shooed', unlocked: false }
+    ];
+
+    let achievementsData = JSON.parse(localStorage.getItem('ghost_achievements') || '{}');
+
+    let currentGhostSkin = localStorage.getItem('ghost_skin') || 'classic';
+    let currentTrackSkin = localStorage.getItem('track_skin') || 'cat';
+    let currentAccessory = localStorage.getItem('accessory') || 'none';
+    let shapeAssistEnabled = localStorage.getItem('shape_assist') === 'true';
+    let currentGameMode = 'arcade'; // 'arcade' or 'timed'
+
+    // Game state
+    let canvas, ctx;
+    let previewCanvas, previewCtx;
+    let isPlaying = false;
+    let score = 0;
+    let hp = 100;
+    let combo = 0;
+    let highScore = localStorage.getItem('ghost_high_score') || 0;
+    let timeRemaining = 60; // For Timed Mode
+
+    let itemsQueue = [];
+    let batsList = [];
+    let particlesList = [];
+    let spawnProgressTimer = 0;
+    let batSpawnTimer = 0;
+    let currentSpeed = 0.18;
+    const baseSpeed = 0.18;
+
+    let leftBucketCount = 0;
+    let rightBucketCount = 0;
+
+    let ghostState = 'idle';
+    let ghostStateTimer = 0;
+    let feverTimer = 0; // Fever mode timer
+    let mouthPos = { x: 0, y: 0 };
+
+    let pathPoints = [];
+    let totalPathLength = 0;
+
+    // Power-up active timers
+    let freezeTimer = 0;
+    let multiplierTimer = 0;
+
+    function resizeCanvas() {
+      const main = document.querySelector('main');
+      canvas.width = main.clientWidth;
+      canvas.height = main.clientHeight;
+      
+      mouthPos = {
+        x: canvas.width / 2,
+        y: canvas.height * 0.81
+      };
+
+      generateTrackPath();
+    }
+
+    function buildPathFromSegments(segments) {
+      let len = 0;
+      pathPoints = [{ ...segments[0].from, distance: 0 }];
+      segments.forEach(seg => {
+        const subSteps = seg.steps || 40;
+        for (let i = 1; i <= subSteps; i++) {
+          const t = i / subSteps;
+          const pt = getCubicBezierPoint(t, seg.from, seg.cp1 || seg.from, seg.cp2 || seg.to, seg.to);
+          const lastPt = pathPoints[pathPoints.length - 1];
+          const dist = Math.hypot(pt.x - lastPt.x, pt.y - lastPt.y);
+          len += dist;
+          pathPoints.push({ ...pt, distance: len });
+        }
+      });
+      totalPathLength = len;
+    }
+
+    function generateTrackPath() {
+      pathPoints = [];
+      const w = canvas.width;
+      const h = canvas.height;
+      const targetMouth = { x: mouthPos.x + 8, y: mouthPos.y - 42 };
+      const startTop = { x: w / 2, y: 35 };
+
+      switch (currentTrackSkin) {
+        case 'cat':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.15, y: h * 0.1 }, cp2: { x: w * 0.2, y: h * 0.25 }, to: { x: w * 0.3, y: h * 0.35 }, steps: 35 },
+            { from: { x: w * 0.3, y: h * 0.35 }, cp1: { x: w * 0.4, y: h * 0.4 }, cp2: { x: w * 0.5, y: h * 0.1 }, to: { x: w * 0.5, y: h * 0.1 }, steps: 30 },
+            { from: { x: w * 0.5, y: h * 0.1 }, cp1: { x: w * 0.5, y: h * 0.1 }, cp2: { x: w * 0.6, y: h * 0.4 }, to: { x: w * 0.7, y: h * 0.35 }, steps: 30 },
+            { from: { x: w * 0.7, y: h * 0.35 }, cp1: { x: w * 0.8, y: h * 0.25 }, cp2: { x: w * 0.85, y: h * 0.1 }, to: { x: w * 0.75, y: h * 0.45 }, steps: 35 },
+            { from: { x: w * 0.75, y: h * 0.45 }, cp1: { x: w * 0.7, y: h * 0.65 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+          ]);
+          break;
+        case 'panda':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.25, y: h * 0.15 }, cp2: { x: w * 0.25, y: h * 0.35 }, to: { x: w * 0.35, y: h * 0.4 }, steps: 40 },
+            { from: { x: w * 0.35, y: h * 0.4 }, cp1: { x: w * 0.3, y: h * 0.1 }, cp2: { x: w * 0.5, y: h * 0.05 }, to: { x: w * 0.5, y: h * 0.2 }, steps: 35 },
+            { from: { x: w * 0.5, y: h * 0.2 }, cp1: { x: w * 0.5, y: h * 0.05 }, cp2: { x: w * 0.7, y: h * 0.1 }, to: { x: w * 0.65, y: h * 0.4 }, steps: 35 },
+            { from: { x: w * 0.65, y: h * 0.4 }, cp1: { x: w * 0.75, y: h * 0.35 }, cp2: { x: w * 0.75, y: h * 0.15 }, to: { x: w * 0.7, y: h * 0.55 }, steps: 40 },
+            { from: { x: w * 0.7, y: h * 0.55 }, cp1: { x: w * 0.6, y: h * 0.7 }, cp2: targetMouth, to: targetMouth, steps: 35 }
+          ]);
+          break;
+        case 'bunny':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.4, y: h * 0.05 }, cp2: { x: w * 0.4, y: h * 0.25 }, to: { x: w * 0.45, y: h * 0.4 }, steps: 40 },
+            { from: { x: w * 0.45, y: h * 0.4 }, cp1: { x: w * 0.42, y: h * 0.15 }, cp2: { x: w * 0.35, y: h * 0.05 }, to: { x: w * 0.35, y: h * 0.2 }, steps: 35 },
+            { from: { x: w * 0.35, y: h * 0.2 }, cp1: { x: w * 0.55, y: h * 0.2 }, cp2: { x: w * 0.65, y: h * 0.05 }, to: { x: w * 0.65, y: h * 0.2 }, steps: 35 },
+            { from: { x: w * 0.65, y: h * 0.2 }, cp2: { x: w * 0.58, y: h * 0.15 }, cp1: { x: w * 0.55, y: h * 0.4 }, to: { x: w * 0.55, y: h * 0.4 }, steps: 35 },
+            { from: { x: w * 0.55, y: h * 0.4 }, cp1: { x: w * 0.6, y: h * 0.65 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+          ]);
+          break;
+        case 'fox':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.1, y: h * 0.1 }, cp2: { x: w * 0.2, y: h * 0.3 }, to: { x: w * 0.3, y: h * 0.2 }, steps: 40 },
+            { from: { x: w * 0.3, y: h * 0.2 }, cp1: { x: w * 0.4, y: h * 0.1 }, cp2: { x: w * 0.5, y: h * 0.05 }, to: { x: w * 0.5, y: h * 0.4 }, steps: 35 },
+            { from: { x: w * 0.5, y: h * 0.4 }, cp1: { x: w * 0.6, y: h * 0.05 }, cp2: { x: w * 0.6, y: h * 0.1 }, to: { x: w * 0.7, y: h * 0.2 }, steps: 35 },
+            { from: { x: w * 0.7, y: h * 0.2 }, cp1: { x: w * 0.8, y: h * 0.3 }, cp2: { x: w * 0.9, y: h * 0.1 }, to: { x: w * 0.6, y: h * 0.55 }, steps: 40 },
+            { from: { x: w * 0.6, y: h * 0.55 }, cp1: { x: w * 0.55, y: h * 0.65 }, cp2: targetMouth, to: targetMouth, steps: 35 }
+          ]);
+          break;
+        case 'frog':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.2, y: h * 0.2 }, cp2: { x: w * 0.3, y: h * 0.1 }, to: { x: w * 0.35, y: h * 0.25 }, steps: 40 },
+            { from: { x: w * 0.35, y: h * 0.25 }, cp1: { x: w * 0.4, y: h * 0.4 }, cp2: { x: w * 0.45, y: h * 0.1 }, to: { x: w * 0.5, y: h * 0.25 }, steps: 35 },
+            { from: { x: w * 0.5, y: h * 0.25 }, cp1: { x: w * 0.55, y: h * 0.1 }, cp2: { x: w * 0.6, y: h * 0.4 }, to: { x: w * 0.65, y: h * 0.25 }, steps: 35 },
+            { from: { x: w * 0.65, y: h * 0.25 }, cp1: { x: w * 0.7, y: h * 0.1 }, cp2: { x: w * 0.8, y: h * 0.2 }, to: { x: w * 0.65, y: h * 0.5 }, steps: 40 },
+            { from: { x: w * 0.65, y: h * 0.5 }, cp1: { x: w * 0.55, y: h * 0.68 }, cp2: targetMouth, to: targetMouth, steps: 35 }
+          ]);
+          break;
+        case 'train':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.2, y: h * 0.15 }, cp2: { x: w * 0.2, y: h * 0.4 }, to: { x: w * 0.4, y: h * 0.4 }, steps: 40 },
+            { from: { x: w * 0.4, y: h * 0.4 }, cp1: { x: w * 0.4, y: h * 0.2 }, cp2: { x: w * 0.45, y: h * 0.2 }, to: { x: w * 0.45, y: h * 0.4 }, steps: 30 },
+            { from: { x: w * 0.45, y: h * 0.4 }, cp1: { x: w * 0.6, y: h * 0.4 }, cp2: { x: w * 0.6, y: h * 0.2 }, to: { x: w * 0.7, y: h * 0.2 }, steps: 35 },
+            { from: { x: w * 0.7, y: h * 0.2 }, cp1: { x: w * 0.8, y: h * 0.2 }, cp2: { x: w * 0.8, y: h * 0.5 }, to: { x: w * 0.7, y: h * 0.5 }, steps: 35 },
+            { from: { x: w * 0.7, y: h * 0.5 }, cp1: { x: w * 0.6, y: h * 0.68 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+          ]);
+          break;
+        case 'rocket':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.45, y: h * 0.1 }, cp2: { x: w * 0.55, y: h * 0.1 }, to: { x: w * 0.5, y: h * 0.35 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.35 }, cp1: { x: w * 0.35, y: h * 0.35 }, cp2: { x: w * 0.3, y: h * 0.5 }, to: { x: w * 0.45, y: h * 0.5 }, steps: 35 },
+            { from: { x: w * 0.45, y: h * 0.5 }, cp1: { x: w * 0.5, y: h * 0.3 }, cp2: { x: w * 0.5, y: h * 0.3 }, to: { x: w * 0.55, y: h * 0.5 }, steps: 30 },
+            { from: { x: w * 0.55, y: h * 0.5 }, cp1: { x: w * 0.7, y: h * 0.5 }, cp2: { x: w * 0.65, y: h * 0.35 }, to: { x: w * 0.5, y: h * 0.6 }, steps: 35 },
+            { from: { x: w * 0.5, y: h * 0.6 }, cp1: { x: w * 0.5, y: h * 0.7 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+          ]);
+          break;
+        case 'car':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.2, y: h * 0.4 }, cp2: { x: w * 0.3, y: h * 0.4 }, to: { x: w * 0.4, y: h * 0.3 }, steps: 40 },
+            { from: { x: w * 0.4, y: h * 0.3 }, cp1: { x: w * 0.45, y: h * 0.2 }, cp2: { x: w * 0.55, y: h * 0.2 }, to: { x: w * 0.6, y: h * 0.3 }, steps: 35 },
+            { from: { x: w * 0.6, y: h * 0.3 }, cp1: { x: w * 0.7, y: h * 0.4 }, cp2: { x: w * 0.8, y: h * 0.4 }, to: { x: w * 0.85, y: h * 0.45 }, steps: 35 },
+            { from: { x: w * 0.85, y: h * 0.45 }, cp1: { x: w * 0.8, y: h * 0.2 }, cp2: { x: w * 0.75, y: h * 0.2 }, to: { x: w * 0.7, y: h * 0.45 }, steps: 30 },
+            { from: { x: w * 0.7, y: h * 0.45 }, cp1: { x: w * 0.6, y: h * 0.65 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+          ]);
+          break;
+        case 'boat':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.4, y: h * 0.1 }, cp2: { x: w * 0.45, y: h * 0.3 }, to: { x: w * 0.5, y: h * 0.45 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.45 }, cp1: { x: w * 0.6, y: h * 0.2 }, cp2: { x: w * 0.65, y: h * 0.1 }, to: { x: w * 0.5, y: h * 0.45 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.45 }, cp1: { x: w * 0.3, y: h * 0.5 }, cp2: { x: w * 0.25, y: h * 0.55 }, to: { x: w * 0.75, y: h * 0.55 }, steps: 40 },
+            { from: { x: w * 0.75, y: h * 0.55 }, cp1: { x: w * 0.65, y: h * 0.68 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+          ]);
+          break;
+        case 'plane':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.5, y: h * 0.1 }, cp2: { x: w * 0.5, y: h * 0.3 }, to: { x: w * 0.5, y: h * 0.5 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.5 }, cp1: { x: w * 0.3, y: h * 0.45 }, cp2: { x: w * 0.2, y: h * 0.4 }, to: { x: w * 0.5, y: h * 0.5 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.5 }, cp1: { x: w * 0.7, y: h * 0.45 }, cp2: { x: w * 0.8, y: h * 0.4 }, to: { x: w * 0.5, y: h * 0.55 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.55 }, cp1: { x: w * 0.4, y: h * 0.55 }, cp2: { x: w * 0.45, y: h * 0.35 }, to: { x: w * 0.5, y: h * 0.65 }, steps: 35 },
+            { from: { x: w * 0.5, y: h * 0.65 }, cp1: { x: w * 0.5, y: h * 0.72 }, cp2: targetMouth, to: targetMouth, steps: 35 }
+          ]);
+          break;
+        case 'halloween':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.5, y: h * 0.1 }, cp2: { x: w * 0.45, y: h * 0.15 }, to: { x: w * 0.45, y: h * 0.25 }, steps: 35 },
+            { from: { x: w * 0.45, y: h * 0.25 }, cp1: { x: w * 0.25, y: h * 0.2 }, cp2: { x: w * 0.2, y: h * 0.45 }, to: { x: w * 0.3, y: h * 0.5 }, steps: 40 },
+            { from: { x: w * 0.3, y: h * 0.5 }, cp1: { x: w * 0.4, y: h * 0.55 }, cp2: { x: w * 0.5, y: h * 0.45 }, to: { x: w * 0.6, y: h * 0.5 }, steps: 35 },
+            { from: { x: w * 0.6, y: h * 0.5 }, cp1: { x: w * 0.8, y: h * 0.45 }, cp2: { x: w * 0.75, y: h * 0.2 }, to: { x: w * 0.55, y: h * 0.25 }, steps: 40 },
+            { from: { x: w * 0.55, y: h * 0.25 }, cp1: { x: w * 0.52, y: h * 0.65 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+          ]);
+          break;
+        case 'christmas':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.5, y: h * 0.1 }, cp2: { x: w * 0.3, y: h * 0.25 }, to: { x: w * 0.7, y: h * 0.25 }, steps: 45 },
+            { from: { x: w * 0.7, y: h * 0.25 }, cp1: { x: w * 0.5, y: h * 0.22 }, cp2: { x: w * 0.25, y: h * 0.4 }, to: { x: w * 0.75, y: h * 0.4 }, steps: 45 },
+            { from: { x: w * 0.75, y: h * 0.4 }, cp1: { x: w * 0.5, y: h * 0.38 }, cp2: { x: w * 0.2, y: h * 0.55 }, to: { x: w * 0.8, y: h * 0.55 }, steps: 45 },
+            { from: { x: w * 0.8, y: h * 0.55 }, cp1: { x: w * 0.55, y: h * 0.68 }, cp2: targetMouth, to: targetMouth, steps: 35 }
+          ]);
+          break;
+        case 'valentine':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.3, y: h * 0.1 }, cp2: { x: w * 0.15, y: h * 0.3 }, to: { x: w * 0.5, y: h * 0.6 }, steps: 60 },
+            { from: { x: w * 0.5, y: h * 0.6 }, cp1: { x: w * 0.85, y: h * 0.3 }, cp2: { x: w * 0.7, y: h * 0.1 }, to: targetMouth, steps: 60 }
+          ]);
+          break;
+        case 'easter':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.25, y: h * 0.15 }, cp2: { x: w * 0.2, y: h * 0.45 }, to: { x: w * 0.5, y: h * 0.65 }, steps: 60 },
+            { from: { x: w * 0.5, y: h * 0.65 }, cp1: { x: w * 0.8, y: h * 0.45 }, cp2: { x: w * 0.75, y: h * 0.15 }, to: targetMouth, steps: 60 }
+          ]);
+          break;
+        case 'newyear':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.8, y: h * 0.2 }, cp2: { x: w * 0.2, y: h * 0.4 }, to: { x: w * 0.8, y: h * 0.4 }, steps: 40 },
+            { from: { x: w * 0.8, y: h * 0.4 }, cp1: { x: w * 0.2, y: h * 0.2 }, cp2: { x: w * 0.5, y: h * 0.6 }, to: { x: w * 0.5, y: h * 0.2 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.2 }, cp1: { x: w * 0.5, y: h * 0.6 }, cp2: { x: w * 0.3, y: h * 0.5 }, to: targetMouth, steps: 45 }
+          ]);
+          break;
+        case 'watermelon':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.15, y: h * 0.3 }, cp2: { x: w * 0.2, y: h * 0.6 }, to: { x: w * 0.5, y: h * 0.65 }, steps: 50 },
+            { from: { x: w * 0.5, y: h * 0.65 }, cp1: { x: w * 0.8, y: h * 0.6 }, cp2: { x: w * 0.85, y: h * 0.3 }, to: { x: w * 0.5, y: h * 0.3 }, steps: 50 },
+            { from: { x: w * 0.5, y: h * 0.3 }, cp1: { x: w * 0.5, y: h * 0.5 }, cp2: targetMouth, to: targetMouth, steps: 35 }
+          ]);
+          break;
+        case 'strawberry':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.3, y: h * 0.15 }, cp2: { x: w * 0.25, y: h * 0.35 }, to: { x: w * 0.5, y: h * 0.65 }, steps: 50 },
+            { from: { x: w * 0.5, y: h * 0.65 }, cp1: { x: w * 0.75, y: h * 0.35 }, cp2: { x: w * 0.7, y: h * 0.15 }, to: { x: w * 0.5, y: h * 0.2 }, steps: 50 },
+            { from: { x: w * 0.5, y: h * 0.2 }, cp1: { x: w * 0.5, y: h * 0.5 }, cp2: targetMouth, to: targetMouth, steps: 30 }
+          ]);
+          break;
+        case 'banana':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.1, y: h * 0.3 }, cp2: { x: w * 0.3, y: h * 0.65 }, to: { x: w * 0.8, y: h * 0.55 }, steps: 70 },
+            { from: { x: w * 0.8, y: h * 0.55 }, cp1: { x: w * 0.6, y: h * 0.68 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+          ]);
+          break;
+        case 'orange':
+          {
+            let len = 0;
+            let prevPt = startTop;
+            pathPoints.push({ ...prevPt, distance: 0 });
+            const stepsCount = 120;
+            for (let i = 1; i <= stepsCount; i++) {
+              const t = i / stepsCount;
+              const angle = t * Math.PI * 1.8 - Math.PI / 2;
+              const radius = w * 0.3;
+              const pt = {
+                x: (w / 2) + Math.cos(angle) * radius,
+                y: (h * 0.38) + Math.sin(angle) * radius
+              };
+              const dist = Math.hypot(pt.x - prevPt.x, pt.y - prevPt.y);
+              len += dist;
+              pathPoints.push({ ...pt, distance: len });
+              prevPt = pt;
+            }
+            const mouthSteps = 30;
+            for (let i = 1; i <= mouthSteps; i++) {
+              const t = i / mouthSteps;
+              const pt = {
+                x: prevPt.x + (targetMouth.x - prevPt.x) * t,
+                y: prevPt.y + (targetMouth.y - prevPt.y) * t
+              };
+              const dist = Math.hypot(pt.x - prevPt.x, pt.y - prevPt.y);
+              len += dist;
+              pathPoints.push({ ...pt, distance: len });
+              prevPt = pt;
+            }
+            totalPathLength = len;
+          }
+          break;
+        case 'grape':
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.35, y: h * 0.2 }, cp2: { x: w * 0.65, y: h * 0.2 }, to: { x: w * 0.5, y: h * 0.35 }, steps: 35 },
+            { from: { x: w * 0.5, y: h * 0.35 }, cp1: { x: w * 0.25, y: h * 0.35 }, cp2: { x: w * 0.25, y: h * 0.5 }, to: { x: w * 0.5, y: h * 0.55 }, steps: 35 },
+            { from: { x: w * 0.5, y: h * 0.55 }, cp1: { x: w * 0.75, y: h * 0.5 }, cp2: { x: w * 0.75, y: h * 0.6 }, to: { x: w * 0.5, y: h * 0.65 }, steps: 35 },
+            { from: { x: w * 0.5, y: h * 0.65 }, cp1: { x: w * 0.5, y: h * 0.72 }, cp2: targetMouth, to: targetMouth, steps: 35 }
+          ]);
+          break;
+        default:
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.5, y: h * 0.3 }, cp2: { x: w * 0.5, y: h * 0.6 }, to: targetMouth, steps: 100 }
+          ]);
+          break;
+      }
+    }
+
+    function getCubicBezierPoint(t, p0, p1, p2, p3) {
+      const u = 1 - t;
+      const tt = t * t;
+      const uu = u * u;
+      const uuu = uu * u;
+      const ttt = tt * t;
+
+      const x = uuu * p0.x + 3 * uu * t * p1.x + 3 * u * tt * p2.x + ttt * p3.x;
+      const y = uuu * p0.y + 3 * uu * t * p1.y + 3 * u * tt * p2.y + ttt * p3.y;
+      return { x, y };
+    }
+
+    function getPointAtDistance(d) {
+      if (d <= 0) return pathPoints[0];
+      if (d >= totalPathLength) return pathPoints[pathPoints.length - 1];
+
+      for (let i = 0; i < pathPoints.length - 1; i++) {
+        if (d >= pathPoints[i].distance && d <= pathPoints[i + 1].distance) {
+          const segLen = pathPoints[i + 1].distance - pathPoints[i].distance;
+          const factor = segLen > 0 ? (d - pathPoints[i].distance) / segLen : 0;
+          return {
+            x: pathPoints[i].x + (pathPoints[i + 1].x - pathPoints[i].x) * factor,
+            y: pathPoints[i].y + (pathPoints[i + 1].y - pathPoints[i].y) * factor
+          };
+        }
+      }
+      return pathPoints[pathPoints.length - 1];
+    }
+
+    function createStarfield() {
+      const container = document.getElementById('starfield');
+      container.innerHTML = '';
+      for (let i = 0; i < 40; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        const size = Math.random() * 2.5 + 1;
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.top = `${Math.random() * 100}%`;
+        star.style.animationDuration = `${Math.random() * 3 + 2}s`;
+        star.style.animationDelay = `${Math.random() * 2}s`;
+        container.appendChild(star);
+      }
+    }
+
+    window.onload = () => {
+      canvas = document.getElementById('gameCanvas');
+      ctx = canvas.getContext('2d');
+      previewCanvas = document.getElementById('previewCanvas');
+      previewCtx = previewCanvas.getContext('2d');
+
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      createStarfield();
+      setupControls();
+      buildShopUI();
+      buildAchievementsUI();
+      startPreviewLoop();
+
+      document.getElementById('best-score').innerText = highScore;
+    };
+
+    function startPreviewLoop() {
+      function renderPreview() {
+        if (!previewCtx) return;
+        previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+        drawGhostGraphic(previewCtx, previewCanvas.width / 2, previewCanvas.height / 2 + 6, currentGhostSkin, currentAccessory, 'idle', 0.65);
+        requestAnimationFrame(renderPreview);
+      }
+      renderPreview();
+    }
+
+    function openInGameMenu() {
+      isPlaying = false;
+      document.getElementById('btn-resume-game').classList.remove('hidden');
+      document.getElementById('btn-start-game').innerText = 'NEW GAME 🔄';
+      document.getElementById('modal-overlay').classList.remove('hidden');
+      document.getElementById('screen-start').classList.remove('hidden');
+    }
+
+    function resumeGame() {
+      document.getElementById('modal-overlay').classList.add('hidden');
+      document.getElementById('screen-start').classList.add('hidden');
+      isPlaying = true;
+      lastTime = performance.now();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function switchTab(tabId) {
+      ['rules', 'skins', 'track', 'accs', 'achievements'].forEach(id => {
+        document.getElementById(`tab-${id}`).classList.add('hidden');
+        document.getElementById(`tab-btn-${id}`).className = 'py-1.5 font-bold rounded-lg text-slate-400 hover:text-white transition';
+      });
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+      document.getElementById(`tab-btn-${tabId}`).className = 'py-1.5 font-bold rounded-lg bg-indigo-600 text-white transition';
+    }
+
+    function setGameMode(mode) {
+      currentGameMode = mode;
+      document.getElementById('mode-btn-arcade').className = mode === 'arcade' ? 'p-2 rounded-xl border text-center font-bold text-xs bg-indigo-950 border-indigo-500 text-white transition' : 'p-2 rounded-xl border text-center font-bold text-xs bg-slate-950 border-slate-800 text-slate-400 transition';
+      document.getElementById('mode-btn-timed').className = mode === 'timed' ? 'p-2 rounded-xl border text-center font-bold text-xs bg-indigo-950 border-indigo-500 text-white transition' : 'p-2 rounded-xl border text-center font-bold text-xs bg-slate-950 border-slate-800 text-slate-400 transition';
+    }
+
+    function toggleShapeAssist() {
+      shapeAssistEnabled = !shapeAssistEnabled;
+      localStorage.setItem('shape_assist', shapeAssistEnabled);
+      const btn = document.getElementById('btn-shape-assist');
+      btn.innerText = shapeAssistEnabled ? 'ON' : 'OFF';
+      btn.className = shapeAssistEnabled ? 'px-3 py-1 rounded-lg bg-indigo-600 text-xs font-bold text-white border border-indigo-400 transition' : 'px-3 py-1 rounded-lg bg-slate-800 text-xs font-bold text-slate-300 border border-slate-700 transition';
+    }
+
+    function buildShopUI() {
+      const skinContainer = document.getElementById('ghost-skins-container');
+      skinContainer.innerHTML = GHOST_SKINS.map(skin => `
+        <button onclick="selectGhostSkin('${skin.id}')" class="p-2 rounded-xl border flex items-center gap-2 transition ${currentGhostSkin === skin.id ? 'bg-indigo-950/90 border-indigo-500 shadow-md ring-1 ring-indigo-500' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'}">
+          <div class="w-5 h-5 rounded-full border border-slate-600 shrink-0" style="background: ${skin.topColor}"></div>
+          <span class="text-[11px] font-bold text-slate-200 truncate">${skin.name}</span>
+        </button>
+      `).join('');
+
+      const trackContainer = document.getElementById('track-skins-container');
+      trackContainer.innerHTML = TRACK_SKINS.map(track => `
+        <button onclick="selectTrackSkin('${track.id}')" class="p-2.5 rounded-xl border flex items-center justify-between transition ${currentTrackSkin === track.id ? 'bg-indigo-950/80 border-indigo-500 shadow-md' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'}">
+          <span class="text-xs font-bold text-slate-200">${track.name}</span>
+          <div class="w-12 h-3 rounded-full border border-slate-600" style="background: ${track.dash}"></div>
+        </button>
+      `).join('');
+
+      const accContainer = document.getElementById('accs-container');
+      accContainer.innerHTML = ACCESSORIES.map(acc => `
+        <button onclick="selectAccessory('${acc.id}')" class="p-2 rounded-xl border flex items-center gap-2 transition ${currentAccessory === acc.id ? 'bg-indigo-950/90 border-indigo-500 shadow-md ring-1 ring-indigo-500' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'}">
+          <span class="text-lg">${acc.icon}</span>
+          <span class="text-[11px] font-bold text-slate-200 truncate">${acc.name}</span>
+        </button>
+      `).join('');
+
+      document.getElementById('btn-shape-assist').innerText = shapeAssistEnabled ? 'ON' : 'OFF';
+      document.getElementById('btn-shape-assist').className = shapeAssistEnabled ? 'px-3 py-1 rounded-lg bg-indigo-600 text-xs font-bold text-white border border-indigo-400 transition' : 'px-3 py-1 rounded-lg bg-slate-800 text-xs font-bold text-slate-300 border border-slate-700 transition';
+    }
+
+    function buildAchievementsUI() {
+      const container = document.getElementById('achievements-container');
+      container.innerHTML = ACHIEVEMENTS_DEF.map(ach => {
+        const currentVal = achievementsData[ach.progressKey] || 0;
+        const isUnlocked = currentVal >= ach.target;
+        return `
+          <div class="p-3 rounded-2xl border flex items-center justify-between bg-slate-950/70 ${isUnlocked ? 'border-amber-500/60 shadow-lg shadow-amber-500/10' : 'border-slate-800 opacity-75'}">
+            <div class="flex items-center gap-3">
+              <div class="text-2xl">${isUnlocked ? '🏆' : '🔒'}</div>
+              <div>
+                <div class="text-xs font-bold text-slate-200">${ach.name}</div>
+                <div class="text-[10px] text-slate-400">${ach.desc}</div>
+              </div>
+            </div>
+            <div class="text-[10px] font-extrabold ${isUnlocked ? 'text-amber-400' : 'text-slate-500'}">
+              ${Math.min(currentVal, ach.target)} / ${ach.target}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateAchievementProgress(key, amount) {
+      achievementsData[key] = (achievementsData[key] || 0) + amount;
+      localStorage.setItem('ghost_achievements', JSON.stringify(achievementsData));
+      buildAchievementsUI();
+    }
+
+    function selectGhostSkin(id) {
+      currentGhostSkin = id;
+      localStorage.setItem('ghost_skin', id);
+      buildShopUI();
+    }
+
+    function selectTrackSkin(id) {
+      currentTrackSkin = id;
+      localStorage.setItem('track_skin', id);
+      generateTrackPath();
+      buildShopUI();
+    }
+
+    function selectAccessory(id) {
+      currentAccessory = id;
+      localStorage.setItem('accessory', id);
+      buildShopUI();
+    }
+
+    function setupControls() {
+      window.addEventListener('keydown', (e) => {
+        if (!isPlaying) return;
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') handleAction('left');
+        else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') handleAction('right');
+        else if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 's' || e.key === 'S') {
+          e.preventDefault();
+          handleAction('eat');
+        } else if (e.key === 'p' || e.key === 'P') {
+          usePowerUp();
+        }
+      });
+
+      let touchStartX = 0, touchStartY = 0;
+      canvas.addEventListener('touchstart', (e) => {
+        if (!isPlaying || e.touches.length === 0) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+
+        // Check if a bat was tapped directly!
+        const touchX = e.touches[0].clientX - canvas.getBoundingClientRect().left;
+        const touchY = e.touches[0].clientY - canvas.getBoundingClientRect().top;
+        checkBatTap(touchX, touchY);
+      }, { passive: true });
+
+      canvas.addEventListener('click', (e) => {
+        if (!isPlaying) return;
+        const touchX = e.clientX - canvas.getBoundingClientRect().left;
+        const touchY = e.clientY - canvas.getBoundingClientRect().top;
+        checkBatTap(touchX, touchY);
+      });
+
+      canvas.addEventListener('touchend', (e) => {
+        if (!isPlaying) return;
+        const diffX = e.changedTouches[0].clientX - touchStartX;
+        const diffY = e.changedTouches[0].clientY - touchStartY;
+
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 25) {
+          if (diffX < 0) handleAction('left');
+          else handleAction('right');
+        } else if (diffY > 25 && Math.abs(diffY) > Math.abs(diffX)) {
+          handleAction('eat');
+        }
+      }, { passive: true });
+    }
+
+    function checkBatTap(x, y) {
+      for (let i = batsList.length - 1; i >= 0; i--) {
+        const bat = batsList[i];
+        const dist = Math.hypot(bat.x - x, bat.y - y);
+        if (dist < 32) {
+          sound.playBatShoo();
+          spawnFloatingText(bat.x, bat.y, '+20! 🦇', '#F472B6');
+          addScore(20);
+          updateAchievementProgress('bats_shooed', 1);
+          batsList.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    function startGame() {
+      sound.init();
+      score = 0;
+      hp = 100;
+      combo = 0;
+      timeRemaining = 60;
+      itemsQueue = [];
+      batsList = [];
+      particlesList = [];
+      leftBucketCount = 0;
+      rightBucketCount = 0;
+      currentSpeed = baseSpeed;
+      spawnProgressTimer = 0;
+      batSpawnTimer = 0;
+      ghostState = 'idle';
+      activePowerUp = null;
+      freezeTimer = 0;
+      multiplierTimer = 0;
+      feverTimer = 0;
+
+      updateHUD();
+      updateBucketsUI();
+      updatePowerUpUI();
+      generateTrackPath();
+
+      document.getElementById('modal-overlay').classList.add('hidden');
+      document.getElementById('screen-start').classList.add('hidden');
+      document.getElementById('screen-gameover').classList.add('hidden');
+
+      if (currentGameMode === 'timed') {
+        document.getElementById('score-label').innerText = 'Time Left';
+      } else {
+        document.getElementById('score-label').innerText = 'Score';
+      }
+
+      isPlaying = true;
+      lastTime = performance.now();
+      requestAnimationFrame(gameLoop);
+    }
+
+    let lastTime = performance.now();
+    function gameLoop(now) {
+      if (!isPlaying) return;
+      const dt = Math.min(0.1, (now - lastTime) / 1000);
+      lastTime = now;
+
+      update(dt);
+      render();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function spawnItem() {
+      let newItem;
+      if (score >= 20 && Math.random() < 0.22) {
+        const pTemplate = POWERUPS_CATALOG[Math.floor(Math.random() * POWERUPS_CATALOG.length)];
+        newItem = {
+          name: pTemplate.name,
+          emoji: pTemplate.emoji,
+          category: ITEM_TYPES.POWERUP,
+          powerUpId: pTemplate.id,
+          dist: 0,
+          targetDist: 0,
+          animOffset: Math.random() * Math.PI * 2
+        };
+      } else {
+        const template = ITEMS_CATALOG[Math.floor(Math.random() * ITEMS_CATALOG.length)];
+        newItem = {
+          ...template,
+          dist: 0,
+          targetDist: 0,
+          animOffset: Math.random() * Math.PI * 2
+        };
+      }
+      itemsQueue.push(newItem);
+    }
+
+    function spawnBat() {
+      batsList.push({
+        x: Math.random() > 0.5 ? -20 : canvas.width + 20,
+        y: Math.random() * (canvas.height * 0.5) + 30,
+        vx: (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 1.5 + 1),
+        vy: (Math.random() - 0.5) * 0.8,
+        animOffset: Math.random() * Math.PI * 2
+      });
+    }
+
+    function update(dt) {
+      if (currentGameMode === 'timed') {
+        timeRemaining -= dt;
+        document.getElementById('score').innerText = `${Math.ceil(timeRemaining)}s`;
+        if (timeRemaining <= 0) {
+          triggerGameOver(`Time's up! Final Score: ${score}`);
+          return;
+        }
+      }
+
+      if (feverTimer > 0) {
+        feverTimer -= dt;
+      }
+
+      let speedMultiplier = 1.0;
+      if (freezeTimer > 0) {
+        freezeTimer -= dt;
+        speedMultiplier = 0.4;
+      }
+      if (activePowerUp && activePowerUp.id === 'speed' || feverTimer > 0) {
+        speedMultiplier *= 1.4;
+      }
+
+      currentSpeed = (baseSpeed + (score / 200) * 0.05) * speedMultiplier;
+
+      if (multiplierTimer > 0) {
+        multiplierTimer -= dt;
+      }
+
+      spawnProgressTimer += dt;
+      const spawnInterval = Math.max(0.65, 1.6 - (score / 250) * 0.2);
+      if (spawnProgressTimer >= spawnInterval) {
+        spawnItem();
+        spawnProgressTimer = 0;
+      }
+
+      batSpawnTimer += dt;
+      if (batSpawnTimer >= 7.0 && batsList.length < 3) {
+        spawnBat();
+        batSpawnTimer = 0;
+      }
+
+      // Update bats
+      for (let i = batsList.length - 1; i >= 0; i--) {
+        const bat = batsList[i];
+        bat.x += bat.vx;
+        bat.y += bat.vy + Math.sin(performance.now() / 150 + bat.animOffset) * 0.5;
+
+        if (bat.x < -50 || bat.x > canvas.width + 50) {
+          batsList.splice(i, 1);
+          takeDamage(10, 'A spooky bat attacked you!');
+        }
+      }
+
+      // Update particles
+      for (let i = particlesList.length - 1; i >= 0; i--) {
+        const p = particlesList[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= dt;
+        if (p.life <= 0) particlesList.splice(i, 1);
+      }
+
+      const activeTrack = TRACK_SKINS.find(s => s.id === currentTrackSkin) || TRACK_SKINS[0];
+      const maxQueueCapacity = activeTrack.capacity;
+
+      const minSpacing = 38; 
+      for (let i = 0; i < itemsQueue.length; i++) {
+        const item = itemsQueue[i];
+        let target = (i === 0) ? totalPathLength : Math.max(0, itemsQueue[i - 1].dist - minSpacing);
+        item.targetDist = target;
+
+        if (item.dist < item.targetDist) {
+          const moveSpeed = (totalPathLength * currentSpeed) * dt;
+          item.dist += Math.min(item.targetDist - item.dist, moveSpeed * 1.5);
+        }
+      }
+
+      const queueRatio = Math.min(1, itemsQueue.length / maxQueueCapacity);
+      document.getElementById('queue-bar').style.width = `${queueRatio * 100}%`;
+      document.getElementById('queue-text').innerText = `${Math.round(queueRatio * 100)}%`;
+
+      if (itemsQueue.length >= maxQueueCapacity && itemsQueue[itemsQueue.length - 1].dist <= 20) {
+        triggerGameOver('The item queue backed up all the way to the top!');
+        return;
+      }
+
+      if (ghostStateTimer > 0) {
+        ghostStateTimer -= dt;
+        if (ghostStateTimer <= 0) ghostState = 'idle';
+      }
+    }
+
+    function handleAction(action) {
+      if (!isPlaying || itemsQueue.length === 0) return;
+      const currentItem = itemsQueue[0];
+
+      if (currentItem.category === ITEM_TYPES.POWERUP) {
+        sound.playPowerUp();
+        activePowerUp = POWERUPS_CATALOG.find(p => p.id === currentItem.powerUpId);
+        updatePowerUpUI();
+        itemsQueue.shift();
+        return;
+      }
+
+      const isCorrect = (
+        (action === 'eat' && currentItem.category === ITEM_TYPES.FOOD) ||
+        (action === 'left' && currentItem.category === ITEM_TYPES.TOY) ||
+        (action === 'right' && currentItem.category === ITEM_TYPES.RECYCLE)
+      );
+
+      if (feverTimer > 0) {
+        // Fever mode auto corrects everything
+        sound.playMunch();
+        addScore(20);
+        spawnParticles(mouthPos.x, mouthPos.y, '#F59E0B');
+        spawnFloatingText(mouthPos.x, mouthPos.y - 30, 'FEVER +20!', '#FDE047');
+        itemsQueue.shift();
+        return;
+      }
+
+      if (action === 'eat') {
+        if (isCorrect) {
+          sound.playMunch();
+          addScore(10);
+          spawnParticles(mouthPos.x, mouthPos.y, '#10B981');
+          spawnFloatingText(mouthPos.x, mouthPos.y - 30, '+10', '#10B981');
+          ghostState = 'eat';
+          ghostStateTimer = 0.35;
+          itemsQueue.shift();
+        } else {
+          sound.playError();
+          takeDamage(15, 'Oops! Casper ate something non-edible!');
+          ghostState = 'damage';
+          ghostStateTimer = 0.4;
+          itemsQueue.shift();
+        }
+      } else if (action === 'left') {
+        if (leftBucketCount >= BUCKET_MAX) {
+          sound.playError();
+          shakeElement(document.getElementById('left-bucket'));
+          return;
+        }
+        if (isCorrect) {
+          sound.playSwipe();
+          addScore(10);
+          spawnParticles(50, canvas.height - 50, '#3B82F6');
+          spawnFloatingText(70, canvas.height - 80, '+10', '#3B82F6');
+          leftBucketCount++;
+          updateBucketsUI();
+          itemsQueue.shift();
+        } else {
+          sound.playError();
+          takeDamage(10, 'Wrong bucket! Toys belong in the Blue Bin.');
+          ghostState = 'damage';
+          ghostStateTimer = 0.4;
+          itemsQueue.shift();
+        }
+      } else if (action === 'right') {
+        if (rightBucketCount >= BUCKET_MAX) {
+          sound.playError();
+          shakeElement(document.getElementById('right-bucket'));
+          return;
+        }
+        if (isCorrect) {
+          sound.playSwipe();
+          addScore(10);
+          spawnParticles(canvas.width - 50, canvas.height - 50, '#F59E0B');
+          spawnFloatingText(canvas.width - 70, canvas.height - 80, '+10', '#F59E0B');
+          rightBucketCount++;
+          updateBucketsUI();
+          itemsQueue.shift();
+        } else {
+          sound.playError();
+          takeDamage(10, 'Wrong bucket! Trash belongs in the Amber Bin.');
+          ghostState = 'damage';
+          ghostStateTimer = 0.4;
+          itemsQueue.shift();
+        }
+      }
+    }
+
+    function usePowerUp() {
+      if (!isPlaying || !activePowerUp) return;
+      sound.playPowerUp();
+
+      if (activePowerUp.id === 'speed') {
+        multiplierTimer = 8;
+      } else if (activePowerUp.id === 'magnet') {
+        if (itemsQueue.length > 0) {
+          addScore(15);
+          itemsQueue.shift();
+        }
+      } else if (activePowerUp.id === 'bomb') {
+        const removedCount = Math.min(3, itemsQueue.length);
+        itemsQueue.splice(0, removedCount);
+        addScore(removedCount * 10);
+      } else if (activePowerUp.id === 'heal') {
+        hp = Math.min(100, hp + 25);
+        updateHUD();
+      } else if (activePowerUp.id === 'freeze') {
+        freezeTimer = 6;
+      } else if (activePowerUp.id === 'multiplier') {
+        multiplierTimer = 8;
+      }
+
+      activePowerUp = null;
+      updatePowerUpUI();
+    }
+
+    function updatePowerUpUI() {
+      const iconBox = document.getElementById('powerup-icon-box');
+      const nameEl = document.getElementById('powerup-name');
+      const btn = document.getElementById('btn-powerup');
+
+      if (activePowerUp) {
+        iconBox.innerText = activePowerUp.emoji;
+        nameEl.innerText = activePowerUp.name;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        btn.classList.add('animate-pulse');
+      } else {
+        iconBox.innerText = '⚡';
+        nameEl.innerText = 'None Collected';
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.classList.remove('animate-pulse');
+      }
+    }
+
+    function emptyBucket(type) {
+      if (!isPlaying) return;
+      if (type === 'left' && leftBucketCount > 0) {
+        sound.playEmptyBucket();
+        leftBucketCount = 0;
+        updateBucketsUI();
+      } else if (type === 'right' && rightBucketCount > 0) {
+        sound.playEmptyBucket();
+        rightBucketCount = 0;
+        updateBucketsUI();
+      }
+    }
+
+    function addScore(points) {
+      combo++;
+      updateAchievementProgress('sort_count', 1);
+      updateAchievementProgress('max_combo', combo);
+
+      if (combo >= 10 && feverTimer <= 0) {
+        feverTimer = 8; // Trigger 8s Fever Mode!
+        spawnFloatingText(mouthPos.x, mouthPos.y - 60, '🔥 FEVER MODE! 🔥', '#F43F5E');
+      }
+
+      let multiplier = (combo > 3 ? 2 : 1) * (multiplierTimer > 0 ? 2 : 1) * (feverTimer > 0 ? 2 : 1);
+      if (currentGameMode !== 'timed') {
+        score += points * multiplier;
+      } else {
+        score += points * multiplier; // in timed mode score acts as points earned
+      }
+
+      updateAchievementProgress('high_roller', score);
+      
+      const comboBadge = document.getElementById('combo-badge');
+      if (combo >= 3) {
+        comboBadge.innerText = `${combo}x COMBO! 🔥`;
+        comboBadge.classList.remove('opacity-0');
+      }
+      updateHUD();
+    }
+
+    function takeDamage(amount, reason) {
+      combo = 0;
+      document.getElementById('combo-badge').classList.add('opacity-0');
+      hp = Math.max(0, hp - amount);
+      updateHUD();
+
+      const canvasEl = document.getElementById('gameCanvas');
+      canvasEl.classList.add('ghost-damage');
+      setTimeout(() => canvasEl.classList.remove('ghost-damage'), 300);
+
+      if (hp <= 0 && currentGameMode === 'arcade') triggerGameOver(reason || 'Ghost lost all HP!');
+    }
+
+    function updateHUD() {
+      if (currentGameMode !== 'timed') {
+        document.getElementById('score').innerText = score;
+      }
+      document.getElementById('hp-text').innerText = `${hp}%`;
+      
+      const hpBar = document.getElementById('hp-bar');
+      hpBar.style.width = `${hp}%`;
+      if (hp > 50) hpBar.className = 'h-full bg-gradient-to-r from-emerald-400 to-green-500 transition-all duration-300';
+      else if (hp > 25) hpBar.className = 'h-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-300';
+      else hpBar.className = 'h-full bg-gradient-to-r from-rose-500 to-red-600 transition-all duration-300';
+    }
+
+    function updateBucketsUI() {
+      const leftFill = document.getElementById('left-bucket-fill');
+      const leftItems = document.getElementById('left-bucket-items');
+      const leftBucketEl = document.getElementById('left-bucket');
+      leftFill.style.width = `${(leftBucketCount / BUCKET_MAX) * 100}%`;
+      leftItems.innerHTML = '🧸'.repeat(leftBucketCount);
+
+      if (leftBucketCount >= BUCKET_MAX) {
+        leftBucketEl.classList.add('bucket-full-pulse', 'border-rose-500');
+        document.getElementById('left-bucket-label').innerText = 'FULL! DUMP NOW';
+        document.getElementById('left-bucket-label').className = 'text-[9px] text-rose-400 font-extrabold animate-bounce';
+      } else {
+        leftBucketEl.classList.remove('bucket-full-pulse', 'border-rose-500');
+        document.getElementById('left-bucket-label').innerText = 'CLICK TO EMPTY';
+        document.getElementById('left-bucket-label').className = 'text-[9px] text-blue-400 font-bold mt-0.5';
+      }
+
+      const rightFill = document.getElementById('right-bucket-fill');
+      const rightItems = document.getElementById('right-bucket-items');
+      const rightBucketEl = document.getElementById('right-bucket');
+      rightFill.style.width = `${(rightBucketCount / BUCKET_MAX) * 100}%`;
+      rightItems.innerHTML = '♻️'.repeat(rightBucketCount);
+
+      if (rightBucketCount >= BUCKET_MAX) {
+        rightBucketEl.classList.add('bucket-full-pulse', 'border-rose-500');
+        document.getElementById('right-bucket-label').innerText = 'FULL! DUMP NOW';
+        document.getElementById('right-bucket-label').className = 'text-[9px] text-rose-400 font-extrabold animate-bounce';
+      } else {
+        rightBucketEl.classList.remove('bucket-full-pulse', 'border-rose-500');
+        document.getElementById('right-bucket-label').innerText = 'CLICK TO EMPTY';
+        document.getElementById('right-bucket-label').className = 'text-[9px] text-amber-400 font-bold mt-0.5';
+      }
+    }
+
+    function triggerGameOver(reason) {
+      isPlaying = false;
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('ghost_high_score', highScore);
+      }
+
+      document.getElementById('final-score').innerText = score;
+      document.getElementById('best-score').innerText = highScore;
+      document.getElementById('gameover-reason').innerText = reason;
+
+      document.getElementById('modal-overlay').classList.remove('hidden');
+      document.getElementById('screen-gameover').classList.remove('hidden');
+    }
+
+    function shakeElement(el) {
+      el.classList.add('animate-bounce');
+      setTimeout(() => el.classList.remove('animate-bounce'), 400);
+    }
+
+    function spawnParticles(x, y, color) {
+      for (let i = 0; i < 8; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 3 + 1;
+        particlesList.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          color,
+          life: 0.5,
+          maxLife: 0.5
+        });
+      }
+    }
+
+    function spawnFloatingText(x, y, text, color) {
+      const container = document.getElementById('floating-text-container');
+      const el = document.createElement('div');
+      el.className = 'floating-text';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.style.color = color;
+      el.innerText = text;
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 800);
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawCurvedTrack();
+      drawBats();
+      drawParticles();
+      drawGhostGraphic(ctx, mouthPos.x, mouthPos.y + 32, currentGhostSkin, currentAccessory, ghostState, feverTimer > 0 ? 1.15 : 1.0);
+      drawQueueItemsOnTrack();
+    }
+
+    function drawParticles() {
+      for (const p of particlesList) {
+        ctx.save();
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life / p.maxLife;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawBats() {
+      for (const bat of batsList) {
+        ctx.save();
+        ctx.translate(bat.x, bat.y);
+        ctx.font = '24px "Segoe UI Emoji", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🦇', 0, 0);
+        ctx.restore();
+      }
+    }
+
+    function drawCurvedTrack() {
+      if (pathPoints.length < 2) return;
+      const skin = TRACK_SKINS.find(s => s.id === currentTrackSkin) || TRACK_SKINS[0];
+
+      ctx.save();
+      ctx.strokeStyle = skin.outer;
+      ctx.lineWidth = 32;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+      for (let i = 1; i < pathPoints.length; i++) {
+        ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = skin.inner;
+      ctx.lineWidth = 14;
+      ctx.stroke();
+
+      ctx.strokeStyle = skin.dash;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 10]);
+      ctx.lineDashOffset = -performance.now() / 25;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawGhostGraphic(targetCtx, x, mouthY, skinId, accessoryId, state, scale = 1.0) {
+      targetCtx.save();
+      const skin = GHOST_SKINS.find(s => s.id === skinId) || GHOST_SKINS[0];
+      
+      const floatOffset = scale === 1.0 ? Math.sin(performance.now() / 320) * 4 : 0;
+      const ghostY = mouthY + floatOffset;
+      const ghostX = x;
+
+      targetCtx.translate(ghostX, ghostY);
+      targetCtx.scale(scale, scale);
+
+      const glowGrad = targetCtx.createRadialGradient(0, -15, 5, 0, -10, 55);
+      glowGrad.addColorStop(0, feverTimer > 0 ? 'rgba(244, 63, 94, 0.8)' : skin.glowColor);
+      glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      targetCtx.fillStyle = glowGrad;
+      targetCtx.beginPath();
+      targetCtx.arc(0, -10, 60, 0, Math.PI * 2);
+      targetCtx.fill();
+
+      const bodyGrad = targetCtx.createLinearGradient(-25, -50, 25, 50);
+      bodyGrad.addColorStop(0, feverTimer > 0 ? '#FEE2E2' : skin.topColor);
+      bodyGrad.addColorStop(0.7, feverTimer > 0 ? '#F43F5E' : skin.midColor);
+      bodyGrad.addColorStop(1, feverTimer > 0 ? '#9F1239' : skin.botColor);
+
+      targetCtx.fillStyle = bodyGrad;
+      targetCtx.strokeStyle = skin.strokeColor;
+      targetCtx.lineWidth = 2;
+
+      targetCtx.beginPath();
+      if (skin.shape === 'skinny') {
+        targetCtx.arc(0, -28, 20, Math.PI * 0.9, Math.PI * 0.1, false);
+        targetCtx.bezierCurveTo(20, -5, 15, 20, 8, 42);
+        targetCtx.bezierCurveTo(2, 58, -8, 52, -4, 68);
+        targetCtx.bezierCurveTo(2, 52, -10, 40, -15, 20);
+        targetCtx.bezierCurveTo(-18, -5, -20, -15, -20, -28);
+      } else if (skin.shape === 'chubby' || skin.shape === 'bloated') {
+        targetCtx.arc(0, -26, 34, Math.PI * 0.9, Math.PI * 0.1, false);
+        targetCtx.bezierCurveTo(38, -5, 32, 25, 20, 42);
+        targetCtx.bezierCurveTo(10, 58, -10, 58, -20, 42);
+        targetCtx.bezierCurveTo(-32, 25, -38, -5, -34, -26);
+      } else if (skin.shape === 'cubby') {
+        targetCtx.roundRect(-28, -52, 56, 74, 18);
+      } else if (skin.shape === 'spiky') {
+        targetCtx.arc(0, -28, 26, Math.PI * 0.9, Math.PI * 0.1, false);
+        targetCtx.lineTo(28, 10);
+        targetCtx.lineTo(18, 25);
+        targetCtx.lineTo(26, 45);
+        targetCtx.lineTo(5, 35);
+        targetCtx.lineTo(-5, 52);
+        targetCtx.lineTo(-18, 35);
+        targetCtx.lineTo(-28, 15);
+      } else if (skin.shape === 'tall') {
+        targetCtx.arc(0, -32, 22, Math.PI * 0.9, Math.PI * 0.1, false);
+        targetCtx.bezierCurveTo(24, 0, 18, 40, 10, 75);
+        targetCtx.bezierCurveTo(4, 85, -4, 85, -10, 75);
+        targetCtx.bezierCurveTo(-18, 40, -24, 0, -22, -32);
+      } else if (skin.shape === 'flat') {
+        targetCtx.ellipse(0, -18, 32, 20, 0, Math.PI, 0, false);
+        targetCtx.lineTo(32, 25);
+        targetCtx.lineTo(16, 38);
+        targetCtx.lineTo(0, 25);
+        targetCtx.lineTo(-16, 38);
+        targetCtx.lineTo(-32, 25);
+      } else if (skin.shape === 'wavy') {
+        targetCtx.arc(0, -28, 26, Math.PI * 0.9, Math.PI * 0.1, false);
+        targetCtx.bezierCurveTo(32, -10, 32, 20, 20, 40);
+        targetCtx.bezierCurveTo(10, 60, 5, 30, 0, 50);
+        targetCtx.bezierCurveTo(-5, 30, -10, 60, -20, 40);
+        targetCtx.bezierCurveTo(-32, 20, -32, -10, -26, -28);
+      } else if (skin.shape === 'star') {
+        targetCtx.arc(0, -28, 26, Math.PI * 0.9, Math.PI * 0.1, false);
+        targetCtx.lineTo(35, 10);
+        targetCtx.lineTo(12, 20);
+        targetCtx.lineTo(20, 60);
+        targetCtx.lineTo(0, 35);
+        targetCtx.lineTo(-20, 60);
+        targetCtx.lineTo(-12, 20);
+        targetCtx.lineTo(-35, 10);
+      } else if (skin.shape === 'bubble') {
+        targetCtx.arc(0, -20, 30, 0, Math.PI * 2, false);
+      } else {
+        targetCtx.arc(0, -28, 28, Math.PI * 0.9, Math.PI * 0.1, false);
+        targetCtx.bezierCurveTo(30, -5, 22, 20, 12, 38);
+        targetCtx.bezierCurveTo(3, 52, -15, 50, -6, 68);
+        targetCtx.bezierCurveTo(8, 60, -3, 42, -12, 30);
+        targetCtx.bezierCurveTo(-25, 15, -30, -5, -28, -28);
+      }
+      targetCtx.closePath();
+      targetCtx.fill();
+      targetCtx.stroke();
+
+      targetCtx.fillStyle = 'rgba(244, 114, 182, 0.4)';
+      targetCtx.beginPath();
+      targetCtx.ellipse(-16, -22, 4.5, 2.5, 0, 0, Math.PI * 2);
+      targetCtx.ellipse(16, -22, 4.5, 2.5, 0, 0, Math.PI * 2);
+      targetCtx.fill();
+
+      const drawEye = (eyeX, eyeY) => {
+        targetCtx.fillStyle = '#FFFFFF';
+        targetCtx.beginPath();
+        targetCtx.ellipse(eyeX, eyeY, 6.5, 9.5, 0, 0, Math.PI * 2);
+        targetCtx.fill();
+        targetCtx.strokeStyle = '#475569';
+        targetCtx.lineWidth = 1;
+        targetCtx.stroke();
+
+        targetCtx.fillStyle = '#7C3AED';
+        targetCtx.beginPath();
+        targetCtx.ellipse(eyeX + 0.5, eyeY + 0.5, 4, 6.5, 0, 0, Math.PI * 2);
+        targetCtx.fill();
+
+        targetCtx.fillStyle = '#1E1B4B';
+        targetCtx.beginPath();
+        targetCtx.ellipse(eyeX + 0.5, eyeY + 1, 2.2, 4, 0, 0, Math.PI * 2);
+        targetCtx.fill();
+
+        targetCtx.fillStyle = '#FFFFFF';
+        targetCtx.beginPath();
+        targetCtx.arc(eyeX - 1.5, eyeY - 3, 1.8, 0, Math.PI * 2);
+        targetCtx.arc(eyeX + 1.2, eyeY + 1.5, 0.8, 0, Math.PI * 2);
+        targetCtx.fill();
+      };
+
+      drawEye(-10, -28);
+      drawEye(10, -28);
+
+      targetCtx.fillStyle = '#1E293B';
+      targetCtx.beginPath();
+      if (state === 'eat') {
+        targetCtx.arc(0, -16, 8, 0, Math.PI, false);
+        targetCtx.closePath();
+        targetCtx.fill();
+        targetCtx.fillStyle = '#F472B6';
+        targetCtx.beginPath();
+        targetCtx.arc(0, -13, 4, 0, Math.PI, false);
+        targetCtx.fill();
+      } else if (state === 'damage') {
+        targetCtx.ellipse(0, -16, 4.5, 6, 0, 0, Math.PI * 2);
+        targetCtx.fill();
+      } else {
+        targetCtx.arc(0, -18, 6, 0.1, Math.PI - 0.1, false);
+        targetCtx.lineWidth = 2;
+        targetCtx.strokeStyle = '#1E293B';
+        targetCtx.stroke();
+      }
+
+      if (accessoryId !== 'none') {
+        targetCtx.font = '20px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+        targetCtx.textAlign = 'center';
+        targetCtx.textBaseline = 'bottom';
+        let accObj = ACCESSORIES.find(a => a.id === accessoryId);
+        let accEmoji = accObj ? accObj.icon : '✨';
+        targetCtx.fillText(accEmoji, 0, -48);
+      }
+
+      targetCtx.restore();
+    }
+
+    function drawQueueItemsOnTrack() {
+      for (let i = 0; i < itemsQueue.length; i++) {
+        const item = itemsQueue[i];
+        const pt = getPointAtDistance(item.dist);
+
+        ctx.save();
+        ctx.translate(pt.x, pt.y);
+
+        const hoverY = Math.sin(performance.now() / 200 + item.animOffset) * 2;
+        ctx.translate(0, hoverY);
+
+        const isFrontItem = (i === 0);
+        const catData = CATEGORY_COLORS[item.category];
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+        ctx.strokeStyle = catData.main;
+        ctx.lineWidth = isFrontItem ? 3 : 2;
+
+        ctx.beginPath();
+        ctx.roundRect(-22, -22, 44, 44, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        if (isFrontItem) {
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, 27 + Math.sin(performance.now() / 150) * 2.5, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = catData.main;
+        ctx.beginPath();
+        ctx.arc(15, -15, 6.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#0F172A';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.font = '20px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(item.emoji, 0, -2);
+
+        // Render Shape Assist symbol if enabled
+        if (shapeAssistEnabled) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.fillText(catData.symbol, -12, -12);
+        }
+
+        ctx.font = 'bold 8px "Quicksand", sans-serif';
+        ctx.fillStyle = catData.main;
+        ctx.fillText(catData.name, 0, 14);
+
+        ctx.restore();
+      }
+    }
+  </script>
+</body>
+</html>
