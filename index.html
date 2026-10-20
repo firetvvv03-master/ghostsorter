@@ -189,9 +189,10 @@
       <span>🧸 TOYS</span>
     </button>
 
-    <button id="btn-eat" onclick="handleAction('eat')" class="flex-1 bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 active:translate-y-0.5 text-white py-3.5 px-1.5 rounded-2xl font-game text-sm sm:text-base border-b-4 border-emerald-950 shadow-xl shadow-emerald-500/20 flex flex-col items-center justify-center transition">
-      <span class="text-[9px] text-emerald-200 tracking-wider">SPACE / DOWN</span>
-      <span class="tracking-wide">😋 EAT FOOD</span>
+    <!-- Split-Color EAT / POWER-UP Button (Green for Food, Purple for Power-up) -->
+    <button id="btn-eat" onclick="handleAction('eat')" style="background: linear-gradient(135deg, #10B981 50%, #A855F7 50%);" class="flex-1 hover:brightness-110 active:translate-y-0.5 text-white py-3.5 px-1.5 rounded-2xl font-game text-sm sm:text-base border-b-4 border-emerald-950 shadow-xl shadow-emerald-500/20 flex flex-col items-center justify-center transition">
+      <span class="text-[9px] text-emerald-100 tracking-wider">SPACE / DOWN</span>
+      <span class="tracking-wide drop-shadow">😋 EAT / PWR-UP</span>
     </button>
 
     <button id="btn-right" onclick="handleAction('right')" class="flex-1 bg-gradient-to-b from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 active:translate-y-0.5 text-white py-3 px-1.5 rounded-2xl font-game text-xs sm:text-sm border-b-4 border-amber-900 shadow-lg flex flex-col items-center justify-center transition">
@@ -239,23 +240,23 @@
             </div>
             <div class="flex items-center gap-2">
               <span class="w-3 h-3 rounded-full bg-blue-500 inline-block shrink-0"></span>
-              <span><b>BLUE = TOYS:</b> Swipe <b>LEFT</b> into Left Bin.</span>
+              <span><b>BLUE = TOYS:</b> Swipe <b>LEFT</b> into Left Bin (Big toys take multi-taps!).</span>
             </div>
             <div class="flex items-center gap-2">
               <span class="w-3 h-3 rounded-full bg-amber-500 inline-block shrink-0"></span>
-              <span><b>AMBER = TRASH:</b> Swipe <b>RIGHT</b> into Right Bin.</span>
+              <span><b>AMBER = TRASH:</b> Swipe <b>RIGHT</b> into Right Bin (Big trash takes multi-taps!).</span>
             </div>
             <div class="flex items-center gap-2 text-purple-300 border-t border-slate-800/80 pt-2">
               <span>⚡ Power-ups trigger <b>instantly</b> upon collection!</span>
             </div>
             <div class="flex items-center gap-2 text-pink-300">
-              <span>🦇 Shoo away flying bats before they steal HP!</span>
+              <span>🦇 Click heart bats to restore HP (+10)! Don't let them escape (-5 HP)!</span>
             </div>
             <div class="flex items-center gap-2 text-rose-300 pt-1">
               <span>👑 Defeat 13 Unique Bosses every 500 Score points in Boss Rush!</span>
             </div>
             
-            <!-- Game Mode Selector inside Rules (Boss Rush added) -->
+            <!-- Game Mode Selector inside Rules -->
             <div class="border-t border-slate-800/80 pt-2.5 mt-2">
               <div class="text-[11px] font-bold text-indigo-300 uppercase mb-1.5">Select Game Mode</div>
               <div class="grid grid-cols-2 gap-2">
@@ -276,21 +277,21 @@
           </div>
         </div>
 
-        <!-- Tab 2: Ghost Shapes & Color Skins (30 Variants) -->
+        <!-- Tab 2: Ghost Skins (First 4 Free, Rest Require Ad Trial) -->
         <div id="tab-skins" class="hidden space-y-2">
-          <div class="text-[11px] text-indigo-300 font-bold uppercase tracking-wider mb-1">Select Ghost Shape & Skin (30)</div>
+          <div class="text-[11px] text-indigo-300 font-bold uppercase tracking-wider mb-1">Select Ghost Shape & Skin (First 4 Free)</div>
           <div class="grid grid-cols-2 gap-2" id="ghost-skins-container"></div>
         </div>
 
-        <!-- Tab 3: Conveyor Line Track Shapes & Themes (20 Variants) -->
+        <!-- Tab 3: Conveyor Line Track Shapes & Themes -->
         <div id="tab-track" class="hidden space-y-2">
           <div class="text-[11px] text-indigo-300 font-bold uppercase tracking-wider mb-1">Select Silhouette Track (20)</div>
           <div class="grid grid-cols-1 gap-2" id="track-skins-container"></div>
         </div>
 
-        <!-- Tab 4: Accessories / Hats (30 Variants) -->
+        <!-- Tab 4: Accessories / Hats (First 4 Free, Rest Require Ad Trial) -->
         <div id="tab-accs" class="hidden space-y-2">
-          <div class="text-[11px] text-indigo-300 font-bold uppercase tracking-wider mb-1">Select Hat / Accessory (30)</div>
+          <div class="text-[11px] text-indigo-300 font-bold uppercase tracking-wider mb-1">Select Hat / Accessory (First 4 Free)</div>
           <div class="grid grid-cols-2 gap-2" id="accs-container"></div>
         </div>
 
@@ -314,25 +315,56 @@
 
     </div>
 
-    <!-- Game Over Screen -->
-    <div id="screen-gameover" class="hidden bg-slate-900 border border-rose-500/40 p-6 rounded-3xl max-w-sm w-full text-center shadow-2xl">
-      <div class="text-4xl mb-2">😵</div>
-      <h2 class="text-2xl font-game text-rose-400 mb-1">GAME OVER</h2>
-      <p id="gameover-reason" class="text-xs text-slate-400 mb-4">You took too much damage!</p>
+    <!-- Ad Simulated Rewarded Modal Overlay (For Shop Unlocks) -->
+    <div id="modal-ad" class="hidden absolute inset-0 z-60 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-purple-500/50 p-6 rounded-3xl max-w-xs w-full text-center shadow-2xl space-y-4">
+        <div class="text-4xl animate-bounce">📺</div>
+        <h3 class="text-lg font-game text-purple-300">WATCH AD FOR 3-DAY TRIAL?</h3>
+        <p class="text-xs text-slate-300">Watch a quick ad simulator to unlock this item for 3 full days!</p>
+        <div class="flex gap-2">
+          <button onclick="closeAdModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl text-xs">CANCEL</button>
+          <button onclick="completeAdTrial()" class="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-purple-600/30">WATCH & UNLOCK</button>
+        </div>
+      </div>
+    </div>
 
-      <div class="bg-slate-950/80 rounded-2xl p-4 mb-5 border border-slate-800 flex justify-around items-center">
+    <!-- Ad Simulated Rewarded Modal Overlay (For Reviving / Continue) -->
+    <div id="modal-revive-ad" class="hidden absolute inset-0 z-60 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-cyan-500/50 p-6 rounded-3xl max-w-xs w-full text-center shadow-2xl space-y-4">
+        <div class="text-4xl animate-bounce">🎬</div>
+        <h3 class="text-lg font-game text-cyan-300">WATCH AD TO CONTINUE?</h3>
+        <p id="revive-ad-desc" class="text-xs text-slate-300">Watch a quick ad simulator to restore 50% HP and keep your score going! (Left: 2)</p>
+        <div class="flex gap-2">
+          <button onclick="declineReviveAd()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl text-xs">NO THANKS</button>
+          <button onclick="completeReviveAd()" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-cyan-600/30">WATCH & CONTINUE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="screen-gameover" class="hidden bg-slate-900 border border-rose-500/40 p-6 rounded-3xl max-w-sm w-full text-center shadow-2xl space-y-4">
+      <div class="text-4xl mb-1">😵</div>
+      <h2 class="text-2xl font-game text-rose-400 mb-0">GAME OVER</h2>
+      <p id="gameover-reason" class="text-xs text-slate-400">You took too much damage!</p>
+
+      <div class="bg-slate-950/80 rounded-2xl p-3 border border-slate-800 flex justify-around items-center">
         <div>
           <div class="text-[10px] text-slate-400 font-bold uppercase">Final Score</div>
-          <div id="final-score" class="text-2xl font-game text-amber-300">0</div>
+          <div id="final-score" class="text-xl font-game text-amber-300">0</div>
         </div>
         <div class="h-8 w-px bg-slate-800"></div>
         <div>
           <div class="text-[10px] text-slate-400 font-bold uppercase">Best Score</div>
-          <div id="best-score" class="text-2xl font-game text-indigo-300">0</div>
+          <div id="best-score" class="text-xl font-game text-indigo-300">0</div>
         </div>
       </div>
 
-      <button onclick="startGame()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-game text-lg py-3.5 rounded-2xl border-b-4 border-emerald-900 shadow-xl transition transform active:scale-98">
+      <!-- Continue via Ad Button (Max 2 times) -->
+      <button id="btn-continue-ad" onclick="promptReviveAd()" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-game text-sm py-3 rounded-2xl border-b-4 border-cyan-900 shadow-lg transition transform active:scale-98 flex items-center justify-center gap-2">
+        <span>📺 CONTINUE WITH AD (<span id="continue-count-left">2</span>/2)</span>
+      </button>
+
+      <button onclick="startGame()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-game text-base py-3 rounded-2xl border-b-4 border-emerald-900 shadow-xl transition transform active:scale-98">
         TRY AGAIN 🔄
       </button>
     </div>
@@ -421,7 +453,7 @@
         const gain = this.ctx.createGain();
         osc.type = 'square';
         osc.frequency.setValueAtTime(600, now);
-        osc.frequency.exponentialRampToValueAtTime(200, now + 0.12);
+        osc.frequency.exponentialRampToValueAtTime(800, now + 0.12);
         gain.gain.setValueAtTime(0.2, now);
         gain.gain.linearRampToValueAtTime(0, now + 0.12);
         osc.connect(gain); gain.connect(this.ctx.destination);
@@ -444,22 +476,28 @@
     };
 
     const ITEMS_CATALOG = [
-      { name: 'Pizza', emoji: '🍕', category: ITEM_TYPES.FOOD },
-      { name: 'Donut', emoji: '🍩', category: ITEM_TYPES.FOOD },
-      { name: 'Cake', emoji: '🍰', category: ITEM_TYPES.FOOD },
-      { name: 'Apple', emoji: '🍎', category: ITEM_TYPES.FOOD },
-      { name: 'Burger', emoji: '🍔', category: ITEM_TYPES.FOOD },
-      { name: 'Candy', emoji: '🍬', category: ITEM_TYPES.FOOD },
-      { name: 'Teddy', emoji: '🧸', category: ITEM_TYPES.TOY },
-      { name: 'Duckie', emoji: '🦆', category: ITEM_TYPES.TOY },
-      { name: 'Robot', emoji: '🤖', category: ITEM_TYPES.TOY },
-      { name: 'Ball', emoji: '⚽', category: ITEM_TYPES.TOY },
-      { name: 'Doll', emoji: '🪆', category: ITEM_TYPES.TOY },
-      { name: 'Battery', emoji: '🔋', category: ITEM_TYPES.RECYCLE },
-      { name: 'Can', emoji: '🥫', category: ITEM_TYPES.RECYCLE },
-      { name: 'Gem', emoji: '💎', category: ITEM_TYPES.RECYCLE },
-      { name: 'Clock', emoji: '⏰', category: ITEM_TYPES.RECYCLE },
-      { name: 'Key', emoji: '🔑', category: ITEM_TYPES.RECYCLE }
+      { name: 'Pizza', emoji: '🍕', category: ITEM_TYPES.FOOD, hp: 1 },
+      { name: 'Donut', emoji: '🍩', category: ITEM_TYPES.FOOD, hp: 1 },
+      { name: 'Cake', emoji: '🍰', category: ITEM_TYPES.FOOD, hp: 1 },
+      { name: 'Apple', emoji: '🍎', category: ITEM_TYPES.FOOD, hp: 1 },
+      { name: 'Burger', emoji: '🍔', category: ITEM_TYPES.FOOD, hp: 1 },
+      { name: 'Candy', emoji: '🍬', category: ITEM_TYPES.FOOD, hp: 1 },
+      { name: 'Teddy', emoji: '🧸', category: ITEM_TYPES.TOY, hp: 1 },
+      { name: 'Duckie', emoji: '🦆', category: ITEM_TYPES.TOY, hp: 1 },
+      { name: 'Robot', emoji: '🤖', category: ITEM_TYPES.TOY, hp: 1 },
+      { name: 'Ball', emoji: '⚽', category: ITEM_TYPES.TOY, hp: 1 },
+      { name: 'Doll', emoji: '🪆', category: ITEM_TYPES.TOY, hp: 1 },
+      { name: 'Battery', emoji: '🔋', category: ITEM_TYPES.RECYCLE, hp: 1 },
+      { name: 'Can', emoji: '🥫', category: ITEM_TYPES.RECYCLE, hp: 1 },
+      { name: 'Gem', emoji: '💎', category: ITEM_TYPES.RECYCLE, hp: 1 },
+      { name: 'Clock', emoji: '⏰', category: ITEM_TYPES.RECYCLE, hp: 1 },
+      { name: 'Key', emoji: '🔑', category: ITEM_TYPES.RECYCLE, hp: 1 },
+
+      // Big Trash & Big Toys (2-3 Taps Required)
+      { name: 'Big Arcade Cabinet', emoji: '🕹️', category: ITEM_TYPES.TOY, hp: 3, effect: 'confetti' },
+      { name: 'Giant Teddy Bear', emoji: '🧸✨', category: ITEM_TYPES.TOY, hp: 2, effect: 'sparkle' },
+      { name: 'Old Broken Fridge', emoji: '🧊🗑️', category: ITEM_TYPES.RECYCLE, hp: 3, effect: 'shockwave' },
+      { name: 'Toxic Barrel', emoji: '🛢️', category: ITEM_TYPES.RECYCLE, hp: 2, effect: 'toxic' }
     ];
 
     const POWERUPS_CATALOG = [
@@ -589,6 +627,12 @@
     ];
 
     let achievementsData = JSON.parse(localStorage.getItem('ghost_achievements') || '{}');
+    let trialPasses = JSON.parse(localStorage.getItem('ghost_trial_passes') || '{}');
+
+    let pendingAdUnlockType = null;
+    let pendingAdUnlockId = null;
+
+    let continuesUsedCount = 0;
 
     let currentGhostSkin = localStorage.getItem('ghost_skin') || 'classic';
     let currentTrackSkin = localStorage.getItem('track_skin') || 'cat';
@@ -626,7 +670,6 @@
     let freezeTimer = 0;
     let multiplierTimer = 0;
 
-    // Boss Battle State
     let activeBoss = null;
     let nextBossScoreThreshold = 500;
 
@@ -938,14 +981,30 @@
       btn.className = shapeAssistEnabled ? 'px-3 py-1 rounded-lg bg-indigo-600 text-xs font-bold text-white border border-indigo-400 transition' : 'px-3 py-1 rounded-lg bg-slate-800 text-xs font-bold text-slate-300 border border-slate-700 transition';
     }
 
+    function isItemUnlocked(type, id, index) {
+      if (index < 4) return true;
+      const expiry = trialPasses[`${type}_${id}`];
+      if (expiry && Date.now() < expiry) return true;
+      return false;
+    }
+
     function buildShopUI() {
       const skinContainer = document.getElementById('ghost-skins-container');
-      skinContainer.innerHTML = GHOST_SKINS.map(skin => `
-        <button onclick="selectGhostSkin('${skin.id}')" class="p-2 rounded-xl border flex items-center gap-2 transition ${currentGhostSkin === skin.id ? 'bg-indigo-950/90 border-indigo-500 shadow-md ring-1 ring-indigo-500' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'}">
-          <div class="w-5 h-5 rounded-full border border-slate-600 shrink-0" style="background: ${skin.topColor}"></div>
-          <span class="text-[11px] font-bold text-slate-200 truncate">${skin.name}</span>
-        </button>
-      `).join('');
+      skinContainer.innerHTML = GHOST_SKINS.map((skin, index) => {
+        const unlocked = isItemUnlocked('skin', skin.id, index);
+        const isSelected = currentGhostSkin === skin.id;
+        return `
+          <button onclick="handleShopClick('skin', '${skin.id}', ${index})" class="p-2 rounded-xl border flex items-center justify-between transition ${isSelected ? 'bg-indigo-950/90 border-indigo-500 shadow-md ring-1 ring-indigo-500' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'}">
+            <div class="flex items-center gap-2 truncate">
+              <div class="w-5 h-5 rounded-full border border-slate-600 shrink-0" style="background: ${skin.topColor}"></div>
+              <span class="text-[11px] font-bold text-slate-200 truncate">${skin.name}</span>
+            </div>
+            <span class="text-[10px] shrink-0 font-bold ${unlocked ? (index < 4 ? 'text-emerald-400' : 'text-purple-400') : 'text-amber-400'}">
+              ${index < 4 ? 'FREE' : (unlocked ? '🔓 3D Trial' : '📺 Ad Trial')}
+            </span>
+          </button>
+        `;
+      }).join('');
 
       const trackContainer = document.getElementById('track-skins-container');
       trackContainer.innerHTML = TRACK_SKINS.map(track => `
@@ -956,12 +1015,79 @@
       `).join('');
 
       const accContainer = document.getElementById('accs-container');
-      accContainer.innerHTML = ACCESSORIES.map(acc => `
-        <button onclick="selectAccessory('${acc.id}')" class="p-2 rounded-xl border flex items-center gap-2 transition ${currentAccessory === acc.id ? 'bg-indigo-950/90 border-indigo-500 shadow-md ring-1 ring-indigo-500' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'}">
-          <span class="text-lg">${acc.icon}</span>
-          <span class="text-[11px] font-bold text-slate-200 truncate">${acc.name}</span>
-        </button>
-      `).join('');
+      accContainer.innerHTML = ACCESSORIES.map((acc, index) => {
+        const unlocked = isItemUnlocked('acc', acc.id, index);
+        const isSelected = currentAccessory === acc.id;
+        return `
+          <button onclick="handleShopClick('acc', '${acc.id}', ${index})" class="p-2 rounded-xl border flex items-center justify-between transition ${isSelected ? 'bg-indigo-950/90 border-indigo-500 shadow-md ring-1 ring-indigo-500' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'}">
+            <div class="flex items-center gap-2 truncate">
+              <span class="text-lg">${acc.icon}</span>
+              <span class="text-[11px] font-bold text-slate-200 truncate">${acc.name}</span>
+            </div>
+            <span class="text-[10px] shrink-0 font-bold ${unlocked ? (index < 4 ? 'text-emerald-400' : 'text-purple-400') : 'text-amber-400'}">
+              ${index < 4 ? 'FREE' : (unlocked ? '🔓 3D Trial' : '📺 Ad Trial')}
+            </span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function handleShopClick(type, id, index) {
+      if (isItemUnlocked(type, id, index)) {
+        if (type === 'skin') selectGhostSkin(id);
+        else if (type === 'acc') selectAccessory(id);
+      } else {
+        pendingAdUnlockType = type;
+        pendingAdUnlockId = id;
+        document.getElementById('modal-ad').classList.remove('hidden');
+      }
+    }
+
+    function closeAdModal() {
+      document.getElementById('modal-ad').classList.add('hidden');
+      pendingAdUnlockType = null;
+      pendingAdUnlockId = null;
+    }
+
+    function completeAdTrial() {
+      if (pendingAdUnlockType && pendingAdUnlockId) {
+        const expiryTime = Date.now() + 3 * 24 * 60 * 60 * 1000;
+        trialPasses[`${pendingAdUnlockType}_${pendingAdUnlockId}`] = expiryTime;
+        localStorage.setItem('ghost_trial_passes', JSON.stringify(trialPasses));
+
+        if (pendingAdUnlockType === 'skin') selectGhostSkin(pendingAdUnlockId);
+        else if (pendingAdUnlockType === 'acc') selectAccessory(pendingAdUnlockId);
+      }
+      closeAdModal();
+    }
+
+    function promptReviveAd() {
+      if (continuesUsedCount >= 2) return;
+      document.getElementById('revive-ad-desc').innerText = `Watch a quick ad simulator to restore 50% HP and keep your score going! (Left: ${2 - continuesUsedCount})`;
+      document.getElementById('modal-revive-ad').classList.remove('hidden');
+    }
+
+    function declineReviveAd() {
+      document.getElementById('modal-revive-ad').classList.add('hidden');
+    }
+
+    function completeReviveAd() {
+      document.getElementById('modal-revive-ad').classList.add('hidden');
+      document.getElementById('screen-gameover').classList.add('hidden');
+      document.getElementById('modal-overlay').classList.add('hidden');
+
+      continuesUsedCount++;
+      hp = 50;
+      updateHUD();
+
+      if (itemsQueue.length > 0) {
+        itemsQueue.shift();
+      }
+
+      isPlaying = true;
+      lastTime = performance.now();
+      requestAnimationFrame(gameLoop);
+      spawnFloatingText(canvas.width / 2, canvas.height / 2, '📺 CONTINUED! HP RESTORED', '#38BDF8');
     }
 
     function buildAchievementsUI() {
@@ -1060,7 +1186,9 @@
         const dist = Math.hypot(bat.x - x, bat.y - y);
         if (dist < 32) {
           sound.playBatShoo();
-          spawnFloatingText(bat.x, bat.y, '+20! 🦇', '#F472B6');
+          hp = Math.min(100, hp + 10); // Restores 10 HP on bat click
+          updateHUD();
+          spawnFloatingText(bat.x, bat.y, '+10 HP! 🦇', '#10B981');
           addScore(20);
           updateAchievementProgress('bats_shooed', 1);
           batsList.splice(i, 1);
@@ -1074,6 +1202,7 @@
       score = 0;
       hp = 100;
       combo = 0;
+      continuesUsedCount = 0;
       itemsQueue = [];
       batsList = [];
       particlesList = [];
@@ -1124,6 +1253,8 @@
           name: pTemplate.name,
           emoji: pTemplate.emoji,
           category: ITEM_TYPES.POWERUP,
+          maxHp: 1,
+          hp: 1,
           powerUpId: pTemplate.id,
           dist: 0,
           targetDist: 0,
@@ -1133,6 +1264,8 @@
         const template = ITEMS_CATALOG[Math.floor(Math.random() * ITEMS_CATALOG.length)];
         newItem = {
           ...template,
+          maxHp: template.hp || 1,
+          hp: template.hp || 1,
           dist: 0,
           targetDist: 0,
           animOffset: Math.random() * Math.PI * 2
@@ -1142,7 +1275,7 @@
     }
 
     function triggerBossSpawn() {
-      if (activeBoss) return; // Prevent spawning multiple bosses at once
+      if (activeBoss) return;
       const bTemplate = BOSSES_CATALOG[Math.floor(Math.random() * BOSSES_CATALOG.length)];
       activeBoss = {
         ...bTemplate,
@@ -1180,7 +1313,6 @@
       }
       if (feverTimer > 0) speedMultiplier *= 1.4;
 
-      // Fixed speed scaling so it caps reasonably and doesn't run away fast
       const cappedScoreForSpeed = Math.min(score, 2000);
       currentSpeed = (baseSpeed + (cappedScoreForSpeed / 400) * 0.04) * speedMultiplier;
       if (multiplierTimer > 0) multiplierTimer -= dt;
@@ -1205,7 +1337,7 @@
 
         if (bat.x < -50 || bat.x > canvas.width + 50) {
           batsList.splice(i, 1);
-          takeDamage(10, 'A spooky bat attacked you!');
+          takeDamage(5, 'A bat carrying a heart escaped!'); // Missed bat penalty reduced to 5 HP
         }
       }
 
@@ -1220,7 +1352,7 @@
       const activeTrack = TRACK_SKINS.find(s => s.id === currentTrackSkin) || TRACK_SKINS[0];
       const maxQueueCapacity = activeTrack.capacity;
 
-      const minSpacing = 38; 
+      const minSpacing = 42; 
       for (let i = 0; i < itemsQueue.length; i++) {
         const item = itemsQueue[i];
         let target = (i === 0) ? totalPathLength : Math.max(0, itemsQueue[i - 1].dist - minSpacing);
@@ -1275,9 +1407,10 @@
 
     function handleAction(action) {
       if (!isPlaying || itemsQueue.length === 0) return;
-      const currentItem = itemsQueue.shift(); // Shift item immediately to prevent double processing
+      const currentItem = itemsQueue[0];
 
       if (currentItem.category === ITEM_TYPES.POWERUP) {
+        itemsQueue.shift();
         activatePowerUpAutomatically(currentItem.powerUpId);
         return;
       }
@@ -1288,72 +1421,81 @@
         (action === 'right' && currentItem.category === ITEM_TYPES.RECYCLE)
       );
 
+      if (!isCorrect) {
+        sound.playError();
+        takeDamage(15, 'Wrong action or bucket!');
+        ghostState = 'damage';
+        ghostStateTimer = 0.4;
+        return;
+      }
+
+      if (currentItem.hp > 1) {
+        currentItem.hp--;
+        sound.playSwipe();
+        spawnParticles(mouthPos.x, mouthPos.y, '#38BDF8');
+        spawnFloatingText(mouthPos.x, mouthPos.y - 30, `HIT! (${currentItem.hp} left)`, '#38BDF8');
+        ghostState = 'eat';
+        ghostStateTimer = 0.25;
+        return;
+      }
+
+      itemsQueue.shift();
+
+      if (currentItem.maxHp > 1) {
+        triggerBigItemEffect(currentItem.effect);
+        addScore(25);
+      } else {
+        addScore(10);
+      }
+
       if (feverTimer > 0) {
         sound.playMunch();
-        addScore(20);
         spawnParticles(mouthPos.x, mouthPos.y, '#F59E0B');
         spawnFloatingText(mouthPos.x, mouthPos.y - 30, 'FEVER +20!', '#FDE047');
         return;
       }
 
       if (action === 'eat') {
-        if (isCorrect) {
-          sound.playMunch();
-          addScore(10);
-          spawnParticles(mouthPos.x, mouthPos.y, '#10B981');
-          spawnFloatingText(mouthPos.x, mouthPos.y - 30, '+10', '#10B981');
-          ghostState = 'eat';
-          ghostStateTimer = 0.35;
-        } else {
-          sound.playError();
-          takeDamage(15, 'Oops! Casper ate something non-edible!');
-          ghostState = 'damage';
-          ghostStateTimer = 0.4;
-        }
+        sound.playMunch();
+        spawnParticles(mouthPos.x, mouthPos.y, '#10B981');
+        ghostState = 'eat';
+        ghostStateTimer = 0.35;
       } else if (action === 'left') {
         if (leftBucketCount >= BUCKET_MAX) {
           sound.playError();
           shakeElement(document.getElementById('left-bucket'));
-          itemsQueue.unshift(currentItem); // Put item back if bucket is full
+          itemsQueue.unshift(currentItem);
           return;
         }
-        if (isCorrect) {
-          sound.playSwipe();
-          addScore(10);
-          spawnParticles(50, canvas.height - 50, '#3B82F6');
-          spawnFloatingText(70, canvas.height - 80, '+10', '#3B82F6');
-          leftBucketCount++;
-          updateBucketsUI();
-        } else {
-          sound.playError();
-          takeDamage(10, 'Wrong bucket! Toys belong in the Blue Bin.');
-          ghostState = 'damage';
-          ghostStateTimer = 0.4;
-        }
+        sound.playSwipe();
+        leftBucketCount++;
+        updateBucketsUI();
       } else if (action === 'right') {
         if (rightBucketCount >= BUCKET_MAX) {
           sound.playError();
           shakeElement(document.getElementById('right-bucket'));
-          itemsQueue.unshift(currentItem); // Put item back if bucket is full
+          itemsQueue.unshift(currentItem);
           return;
         }
-        if (isCorrect) {
-          sound.playSwipe();
-          addScore(10);
-          spawnParticles(canvas.width - 50, canvas.height - 50, '#F59E0B');
-          spawnFloatingText(canvas.width - 70, canvas.height - 80, '+10', '#F59E0B');
-          rightBucketCount++;
-          updateBucketsUI();
-        } else {
-          sound.playError();
-          takeDamage(10, 'Wrong bucket! Trash belongs in the Amber Bin.');
-          ghostState = 'damage';
-          ghostStateTimer = 0.4;
-        }
+        sound.playSwipe();
+        rightBucketCount++;
+        updateBucketsUI();
       }
     }
 
-    // Boss damage is now handled strictly once per successfully sorted item
+    function triggerBigItemEffect(effectType) {
+      sound.playPowerUp();
+      if (effectType === 'confetti') {
+        spawnFloatingText(canvas.width / 2, canvas.height / 2 - 40, '✨ ARCADE JACKPOT! ✨', '#F43F5E');
+        spawnParticles(canvas.width / 2, canvas.height / 2, '#EC4899');
+      } else if (effectType === 'shockwave') {
+        spawnFloatingText(canvas.width / 2, canvas.height / 2 - 40, '💥 HEAVY METAL DUMP!', '#F59E0B');
+        shakeElement(document.getElementById('right-bucket'));
+      } else {
+        spawnFloatingText(canvas.width / 2, canvas.height / 2 - 40, '🌟 BIG ITEM CLEARED! +25', '#A855F7');
+      }
+    }
+
     function checkBossProgress() {
       if (activeBoss) {
         activeBoss.hp--;
@@ -1366,7 +1508,7 @@
           document.getElementById('boss-hud').classList.remove('flex');
           document.getElementById('boss-hud').classList.add('hidden');
           
-          score += reward; // Award boss bonus directly without re-triggering combo loops
+          score += reward;
           updateHUD();
           spawnFloatingText(canvas.width / 2, canvas.height / 2, `🎉 BOSS DEFEATED! +${reward}`, '#FDE047');
         }
@@ -1414,7 +1556,7 @@
         comboBadge.classList.add('opacity-0');
       }
       updateHUD();
-      checkBossProgress(); // Safely check/damage boss once per score event
+      checkBossProgress();
     }
 
     function takeDamage(amount, reason) {
@@ -1486,6 +1628,17 @@
       document.getElementById('best-score').innerText = highScore;
       document.getElementById('gameover-reason').innerText = reason;
 
+      const continueBtn = document.getElementById('btn-continue-ad');
+      const leftCountSpan = document.getElementById('continue-count-left');
+      const remainingContinues = 2 - continuesUsedCount;
+      leftCountSpan.innerText = remainingContinues;
+
+      if (remainingContinues <= 0) {
+        continueBtn.classList.add('hidden');
+      } else {
+        continueBtn.classList.remove('hidden');
+      }
+
       document.getElementById('modal-overlay').classList.remove('hidden');
       document.getElementById('screen-gameover').classList.remove('hidden');
     }
@@ -1550,7 +1703,7 @@
         ctx.font = '24px "Segoe UI Emoji", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('🦇', 0, 0);
+        ctx.fillText('🦇💘', 0, 0); // Bat carrying heart emoji representation
         ctx.restore();
       }
     }
@@ -1891,13 +2044,18 @@
 
         const isFrontItem = (i === 0);
         const catData = CATEGORY_COLORS[item.category];
+        const isBigItem = item.maxHp > 1;
+        
+        // Render Big items significantly larger (1.35x box size & emojis)
+        const boxSize = isBigItem ? 30 : 22;
+        const emojiSize = isBigItem ? '26px' : '20px';
 
         ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
         ctx.strokeStyle = catData.main;
         ctx.lineWidth = isFrontItem ? 3 : 2;
 
         ctx.beginPath();
-        ctx.roundRect(-22, -22, 44, 44, 12);
+        ctx.roundRect(-boxSize, -boxSize, boxSize * 2, boxSize * 2, isBigItem ? 16 : 12);
         ctx.fill();
         ctx.stroke();
 
@@ -1905,19 +2063,19 @@
           ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
           ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.arc(0, 0, 27 + Math.sin(performance.now() / 150) * 2.5, 0, Math.PI * 2);
+          ctx.arc(0, 0, (boxSize + 5) + Math.sin(performance.now() / 150) * 2.5, 0, Math.PI * 2);
           ctx.stroke();
         }
 
         ctx.fillStyle = catData.main;
         ctx.beginPath();
-        ctx.arc(15, -15, 6.5, 0, Math.PI * 2);
+        ctx.arc(boxSize - 7, -(boxSize - 7), 6.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#0F172A';
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
-        ctx.font = '20px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+        ctx.font = `${emojiSize} "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(item.emoji, 0, -2);
@@ -1925,12 +2083,19 @@
         if (shapeAssistEnabled) {
           ctx.fillStyle = '#FFFFFF';
           ctx.font = 'bold 11px sans-serif';
-          ctx.fillText(catData.symbol, -12, -12);
+          ctx.fillText(catData.symbol, -(boxSize - 10), -(boxSize - 10));
+        }
+
+        if (isBigItem) {
+          ctx.fillStyle = '#EF4444';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${item.hp} TAPS`, 0, -(boxSize + 10));
         }
 
         ctx.font = 'bold 8px "Quicksand", sans-serif';
         ctx.fillStyle = catData.main;
-        ctx.fillText(catData.name, 0, 14);
+        ctx.fillText(catData.name, 0, boxSize - 8);
 
         ctx.restore();
       }
