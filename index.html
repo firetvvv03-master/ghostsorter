@@ -136,6 +136,20 @@
     </button>
   </header>
 
+  <!-- Boss Health HUD Bar (Hidden by default until Boss appears) -->
+  <div id="boss-hud" class="w-full max-w-md z-10 hidden items-center justify-between bg-rose-950/90 backdrop-blur border border-rose-500/60 rounded-2xl p-2 my-1 shadow-lg shadow-rose-500/20 animate-pulse">
+    <div class="flex items-center gap-2">
+      <span id="boss-emoji" class="text-xl">👑</span>
+      <div>
+        <div id="boss-name" class="text-[10px] text-rose-300 font-extrabold uppercase tracking-wide">Pumpkin King</div>
+        <div class="text-xs font-bold text-white"><span id="boss-hp">100</span> / <span id="boss-max-hp">100</span> HP</div>
+      </div>
+    </div>
+    <div class="w-1/2 h-3 bg-slate-900 rounded-full overflow-hidden border border-rose-500/80">
+      <div id="boss-hp-bar" class="h-full bg-gradient-to-r from-rose-500 to-amber-400 transition-all duration-200 w-full"></div>
+    </div>
+  </div>
+
   <!-- Main Playing Field Container -->
   <main class="relative w-full max-w-md flex-1 my-2 z-10 flex items-center justify-center overflow-hidden">
     
@@ -167,20 +181,6 @@
     </div>
 
   </main>
-
-  <!-- Power-Up Active Inventory Bar -->
-  <div class="w-full max-w-md z-10 flex items-center justify-between bg-slate-900/90 backdrop-blur border border-purple-500/50 rounded-2xl p-2 mb-2 shadow-lg">
-    <div class="flex items-center gap-2">
-      <div id="powerup-icon-box" class="w-9 h-9 rounded-xl bg-slate-950 border border-purple-500/60 flex items-center justify-center text-lg shadow-inner">⚡</div>
-      <div>
-        <div class="text-[9px] text-purple-300 font-extrabold uppercase tracking-wide">Active Power-Up</div>
-        <div id="powerup-name" class="text-xs font-bold text-slate-200">None Collected</div>
-      </div>
-    </div>
-    <button id="btn-powerup" onclick="usePowerUp()" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-95 text-white font-game text-xs py-2 px-4 rounded-xl border border-purple-400/50 shadow opacity-50 cursor-not-allowed transition">
-      USE POWER-UP (P)
-    </button>
-  </div>
 
   <!-- Interactive Color-Matched Controls Bar -->
   <footer class="w-full max-w-md z-10 flex items-center justify-between gap-2 mb-1">
@@ -246,24 +246,24 @@
               <span><b>AMBER = TRASH:</b> Swipe <b>RIGHT</b> into Right Bin.</span>
             </div>
             <div class="flex items-center gap-2 text-purple-300 border-t border-slate-800/80 pt-2">
-              <span>⚡ Eat Power-Up items to trigger special abilities!</span>
+              <span>⚡ Power-ups trigger <b>instantly</b> upon collection!</span>
             </div>
             <div class="flex items-center gap-2 text-pink-300">
               <span>🦇 Shoo away flying bats before they steal HP!</span>
             </div>
             <div class="flex items-center gap-2 text-rose-300 pt-1">
-              <span>🗑️ Click full bins to empty them!</span>
+              <span>👑 Defeat 13 Unique Bosses every 500 Score points in Boss Rush!</span>
             </div>
             
-            <!-- Game Mode Selector inside Rules -->
+            <!-- Game Mode Selector inside Rules (Boss Rush added) -->
             <div class="border-t border-slate-800/80 pt-2.5 mt-2">
               <div class="text-[11px] font-bold text-indigo-300 uppercase mb-1.5">Select Game Mode</div>
               <div class="grid grid-cols-2 gap-2">
                 <button onclick="setGameMode('arcade')" id="mode-btn-arcade" class="p-2 rounded-xl border text-center font-bold text-xs bg-indigo-950 border-indigo-500 text-white transition">
-                  🎮 Arcade (HP)
+                  🎮 Arcade (Standard)
                 </button>
-                <button onclick="setGameMode('timed')" id="mode-btn-timed" class="p-2 rounded-xl border text-center font-bold text-xs bg-slate-950 border-slate-800 text-slate-400 transition">
-                  ⏱️ 60s Time Attack
+                <button onclick="setGameMode('boss')" id="mode-btn-boss" class="p-2 rounded-xl border text-center font-bold text-xs bg-slate-950 border-slate-800 text-slate-400 transition">
+                  👑 Boss Rush Mode
                 </button>
               </div>
             </div>
@@ -276,9 +276,9 @@
           </div>
         </div>
 
-        <!-- Tab 2: Ghost Shapes & Color Skins (20 Variants) -->
+        <!-- Tab 2: Ghost Shapes & Color Skins (30 Variants) -->
         <div id="tab-skins" class="hidden space-y-2">
-          <div class="text-[11px] text-indigo-300 font-bold uppercase tracking-wider mb-1">Select Ghost Shape & Skin (20)</div>
+          <div class="text-[11px] text-indigo-300 font-bold uppercase tracking-wider mb-1">Select Ghost Shape & Skin (30)</div>
           <div class="grid grid-cols-2 gap-2" id="ghost-skins-container"></div>
         </div>
 
@@ -342,7 +342,7 @@
   <!-- Audio Synthesizer Script -->
   <script>
     class SoundEffects {
-      constructor() { this.ctx = null; this.bgmOsc = null; this.isBgmPlaying = false; }
+      constructor() { this.ctx = null; }
       init() {
         if (!this.ctx) {
           this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -462,45 +462,69 @@
       { name: 'Key', emoji: '🔑', category: ITEM_TYPES.RECYCLE }
     ];
 
-    // 6 Distinct Power-Ups
     const POWERUPS_CATALOG = [
-      { id: 'speed', name: 'Speed Boost', emoji: '⚡', desc: 'Faster score gains & reactions' },
-      { id: 'magnet', name: 'Auto Magnet', emoji: '🧲', desc: 'Instantly sorts front item safely' },
-      { id: 'bomb', name: 'Queue Bomb', emoji: '💣', desc: 'Clears top 3 items from queue' },
-      { id: 'heal', name: 'HP Heart', emoji: '❤️', desc: 'Restores +25% HP' },
-      { id: 'freeze', name: 'Time Freeze', emoji: '⏱️', desc: 'Slows down conveyor for 6s' },
-      { id: 'multiplier', name: 'Star Multiplier', emoji: '⭐', desc: 'Double points for 8s' }
+      { id: 'speed', name: 'Speed Boost Active!', emoji: '⚡', desc: 'Faster score gains & reactions' },
+      { id: 'magnet', name: 'Auto Magnet Sorted!', emoji: '🧲', desc: 'Instantly sorts front item safely' },
+      { id: 'bomb', name: 'Queue Cleared!', emoji: '💣', desc: 'Clears top 3 items from queue' },
+      { id: 'heal', name: 'HP Restored (+25%)!', emoji: '❤️', desc: 'Restores +25% HP' },
+      { id: 'freeze', name: 'Conveyor Frozen!', emoji: '⏱️', desc: 'Slows down conveyor for 6s' },
+      { id: 'multiplier', name: 'Star Multiplier Active!', emoji: '⭐', desc: 'Double points for 8s' }
     ];
 
-    let activePowerUp = null; // Stored power-up object
+    // 13 Total Bosses
+    const BOSSES_CATALOG = [
+      { name: 'Pumpkin King', emoji: '🎃', maxHp: 10, reward: 150 },
+      { name: 'Phantom Lord', emoji: '👻', maxHp: 12, reward: 200 },
+      { name: 'Shadow Dragon', emoji: '🐉', maxHp: 15, reward: 300 },
+      { name: 'Mecha Spectre', emoji: '🤖', maxHp: 16, reward: 320 },
+      { name: 'Vampire Count', emoji: '🧛', maxHp: 18, reward: 350 },
+      { name: 'Toxic Slime Boss', emoji: '🧪', maxHp: 20, reward: 380 },
+      { name: 'Inferno Demon', emoji: '🔥', maxHp: 22, reward: 420 },
+      { name: 'Frost Golem', emoji: '🧊', maxHp: 24, reward: 450 },
+      { name: 'Cyber Warlock', emoji: '🔮', maxHp: 26, reward: 480 },
+      { name: 'Cosmic Alien', emoji: '👽', maxHp: 28, reward: 520 },
+      { name: 'Zombie Overlord', emoji: '🧟', maxHp: 30, reward: 550 },
+      { name: 'Kraken Tentacle', emoji: '🦑', maxHp: 32, reward: 600 },
+      { name: 'Arch Demonlord', emoji: '😈', maxHp: 35, reward: 700 }
+    ];
 
     const BUCKET_MAX = 10; 
 
-    // 20 Distinct Ghost Shape & Color Skins
+    // 30 Distinct Ghost Shape & Color Skins
     const GHOST_SKINS = [
-      { id: 'classic', name: 'Classic White', shape: 'standard', topColor: '#FFFFFF', midColor: '#E0F2FE', botColor: '#BAE6FD', strokeColor: '#93C5FD', glowColor: 'rgba(224, 242, 254, 0.35)' },
-      { id: 'skinny', name: 'Skinny Casper', shape: 'skinny', topColor: '#F8FAFC', midColor: '#CBD5E1', botColor: '#94A3B8', strokeColor: '#64748B', glowColor: 'rgba(203, 213, 225, 0.35)' },
-      { id: 'chubby', name: 'Chubby Boo', shape: 'chubby', topColor: '#FEF08A', midColor: '#FDE047', botColor: '#EAB308', strokeColor: '#CA8A04', glowColor: 'rgba(253, 224, 71, 0.4)' },
-      { id: 'cubby', name: 'Cubby Square', shape: 'cubby', topColor: '#99F6E4', midColor: '#5EEAD4', botColor: '#2DD4BF', strokeColor: '#0D9488', glowColor: 'rgba(94, 234, 212, 0.4)' },
-      { id: 'pink', name: 'Neon Pink', shape: 'standard', topColor: '#F472B6', midColor: '#DB2777', botColor: '#9D174D', strokeColor: '#FEE2E2', glowColor: 'rgba(244, 114, 182, 0.45)' },
-      { id: 'shadow', name: 'Midnight Shadow', shape: 'standard', topColor: '#334155', midColor: '#1E293B', botColor: '#0F172A', strokeColor: '#64748B', glowColor: 'rgba(99, 102, 241, 0.35)' },
-      { id: 'gold', name: 'Golden Spirit', shape: 'chubby', topColor: '#FDE047', midColor: '#EAB308', botColor: '#CA8A04', strokeColor: '#FEF08A', glowColor: 'rgba(250, 204, 21, 0.45)' },
-      { id: 'spiky', name: 'Spiky Phantom', shape: 'spiky', topColor: '#C084FC', midColor: '#A855F7', botColor: '#7E22CE', strokeColor: '#E9D5FF', glowColor: 'rgba(168, 85, 247, 0.4)' },
-      { id: 'bloated', name: 'Bloated Blob', shape: 'bloated', topColor: '#86EFAC', midColor: '#4ADE80', botColor: '#16A34A', strokeColor: '#DCFCE7', glowColor: 'rgba(74, 222, 128, 0.4)' },
-      { id: 'tall', name: 'Tall Specter', shape: 'tall', topColor: '#93C5FD', midColor: '#60A5FA', botColor: '#2563EB', strokeColor: '#DBEAFE', glowColor: 'rgba(96, 165, 250, 0.4)' },
-      { id: 'flat', name: 'Flat Floater', shape: 'flat', topColor: '#FCA5A5', midColor: '#F87171', botColor: '#DC2626', strokeColor: '#FEE2E2', glowColor: 'rgba(248, 113, 113, 0.4)' },
-      { id: 'wavy', name: 'Wavy Spirit', shape: 'wavy', topColor: '#FDBA74', midColor: '#FB923C', botColor: '#EA580C', strokeColor: '#FFEDD5', glowColor: 'rgba(251, 146, 60, 0.4)' },
-      { id: 'star', name: 'Star-Tailed', shape: 'star', topColor: '#F43F5E', midColor: '#E11D48', botColor: '#9F1239', strokeColor: '#FECDD3', glowColor: 'rgba(225, 29, 72, 0.4)' },
-      { id: 'bubble', name: 'Bubble Spirit', shape: 'bubble', topColor: '#38BDF8', midColor: '#0EA5E9', botColor: '#0284C7', strokeColor: '#E0F2FE', glowColor: 'rgba(14, 165, 233, 0.4)' },
-      { id: 'goth', name: 'Goth Ghoul', shape: 'skinny', topColor: '#1E1B4B', midColor: '#312E81', botColor: '#111827', strokeColor: '#818CF8', glowColor: 'rgba(79, 70, 229, 0.4)' },
-      { id: 'mint', name: 'Minty Fresh', shape: 'chubby', topColor: '#A7F3D0', midColor: '#6EE7B7', botColor: '#10B981', strokeColor: '#ECFDF5', glowColor: 'rgba(110, 231, 183, 0.4)' },
-      { id: 'lavender', name: 'Lavender Lord', shape: 'cubby', topColor: '#E9D5FF', midColor: '#D8B4FE', botColor: '#C084FC', strokeColor: '#F3E8FF', glowColor: 'rgba(216, 180, 254, 0.4)' },
-      { id: 'fire', name: 'Flame Fiend', shape: 'spiky', topColor: '#FB7185', midColor: '#F43F5E', botColor: '#BE123C', strokeColor: '#FFE4E6', glowColor: 'rgba(244, 63, 94, 0.4)' },
-      { id: 'ice', name: 'Ice Wraith', shape: 'tall', topColor: '#E0F2FE', midColor: '#BAE6FD', botColor: '#7DD3FC', strokeColor: '#F0F9FF', glowColor: 'rgba(186, 230, 253, 0.4)' },
-      { id: 'royal', name: 'Royal Phantom', shape: 'chubby', topColor: '#FDE68A', midColor: '#F59E0B', botColor: '#D97706', strokeColor: '#FEF3C7', glowColor: 'rgba(245, 158, 11, 0.4)' }
+      { id: 'classic', name: 'Classic White', shape: 'standard', topColor: '#FFFFFF', midColor: '#E0F2FE', botColor: '#BAE6FD', strokeColor: '#93C5FD', glowColor: 'rgba(224, 242, 254, 0.35)', eyeStyle: 'cute', mouthStyle: 'smile' },
+      { id: 'skinny', name: 'Skinny Casper', shape: 'skinny', topColor: '#F8FAFC', midColor: '#CBD5E1', botColor: '#94A3B8', strokeColor: '#64748B', glowColor: 'rgba(203, 213, 225, 0.35)', eyeStyle: 'wink', mouthStyle: 'smirk' },
+      { id: 'chubby', name: 'Chubby Boo', shape: 'chubby', topColor: '#FEF08A', midColor: '#FDE047', botColor: '#EAB308', strokeColor: '#CA8A04', glowColor: 'rgba(253, 224, 71, 0.4)', eyeStyle: 'happy', mouthStyle: 'wide' },
+      { id: 'cubby', name: 'Cubby Square', shape: 'cubby', topColor: '#99F6E4', midColor: '#5EEAD4', botColor: '#2DD4BF', strokeColor: '#0D9488', glowColor: 'rgba(94, 234, 212, 0.4)', eyeStyle: 'determined', mouthStyle: 'flat' },
+      { id: 'pink', name: 'Neon Pink', shape: 'standard', topColor: '#F472B6', midColor: '#DB2777', botColor: '#9D174D', strokeColor: '#FEE2E2', glowColor: 'rgba(244, 114, 182, 0.45)', eyeStyle: 'starry', mouthStyle: 'wide' },
+      { id: 'shadow', name: 'Midnight Shadow', shape: 'standard', topColor: '#334155', midColor: '#1E293B', botColor: '#0F172A', strokeColor: '#64748B', glowColor: 'rgba(99, 102, 241, 0.35)', eyeStyle: 'sleepy', mouthStyle: 'chill' },
+      { id: 'gold', name: 'Golden Spirit', shape: 'chubby', topColor: '#FDE047', midColor: '#EAB308', botColor: '#CA8A04', strokeColor: '#FEF08A', glowColor: 'rgba(250, 204, 21, 0.45)', eyeStyle: 'wink', mouthStyle: 'smile' },
+      { id: 'spiky', name: 'Spiky Phantom', shape: 'spiky', topColor: '#C084FC', midColor: '#A855F7', botColor: '#7E22CE', strokeColor: '#E9D5FF', glowColor: 'rgba(168, 85, 247, 0.4)', eyeStyle: 'mischief', mouthStyle: 'grin' },
+      { id: 'bloated', name: 'Bloated Blob', shape: 'bloated', topColor: '#86EFAC', midColor: '#4ADE80', botColor: '#16A34A', strokeColor: '#DCFCE7', glowColor: 'rgba(74, 222, 128, 0.4)', eyeStyle: 'happy', mouthStyle: 'wide' },
+      { id: 'tall', name: 'Tall Specter', shape: 'tall', topColor: '#93C5FD', midColor: '#60A5FA', botColor: '#2563EB', strokeColor: '#DBEAFE', glowColor: 'rgba(96, 165, 250, 0.4)', eyeStyle: 'cool', mouthStyle: 'smirk' },
+      { id: 'flat', name: 'Flat Floater', shape: 'flat', topColor: '#FCA5A5', midColor: '#F87171', botColor: '#DC2626', strokeColor: '#FEE2E2', glowColor: 'rgba(248, 113, 113, 0.4)', eyeStyle: 'shocked', mouthStyle: 'oops' },
+      { id: 'wavy', name: 'Wavy Spirit', shape: 'wavy', topColor: '#FDBA74', midColor: '#FB923C', botColor: '#EA580C', strokeColor: '#FFEDD5', glowColor: 'rgba(251, 146, 60, 0.4)', eyeStyle: 'dizzy', mouthStyle: 'wavy' },
+      { id: 'star', name: 'Star-Tailed', shape: 'star', topColor: '#F43F5E', midColor: '#E11D48', botColor: '#9F1239', strokeColor: '#FECDD3', glowColor: 'rgba(225, 29, 72, 0.4)', eyeStyle: 'starry', mouthStyle: 'wide' },
+      { id: 'bubble', name: 'Bubble Spirit', shape: 'bubble', topColor: '#38BDF8', midColor: '#0EA5E9', botColor: '#0284C7', strokeColor: '#E0F2FE', glowColor: 'rgba(14, 165, 233, 0.4)', eyeStyle: 'cute', mouthStyle: 'bubble' },
+      { id: 'goth', name: 'Goth Ghoul', shape: 'skinny', topColor: '#1E1B4B', midColor: '#312E81', botColor: '#111827', strokeColor: '#818CF8', glowColor: 'rgba(79, 70, 229, 0.4)', eyeStyle: 'sleepy', mouthStyle: 'flat' },
+      { id: 'mint', name: 'Minty Fresh', shape: 'chubby', topColor: '#A7F3D0', midColor: '#6EE7B7', botColor: '#10B981', strokeColor: '#ECFDF5', glowColor: 'rgba(110, 231, 183, 0.4)', eyeStyle: 'happy', mouthStyle: 'smile' },
+      { id: 'lavender', name: 'Lavender Lord', shape: 'cubby', topColor: '#E9D5FF', midColor: '#D8B4FE', botColor: '#C084FC', strokeColor: '#F3E8FF', glowColor: 'rgba(216, 180, 254, 0.4)', eyeStyle: 'cool', mouthStyle: 'smirk' },
+      { id: 'fire', name: 'Flame Fiend', shape: 'spiky', topColor: '#FB7185', midColor: '#F43F5E', botColor: '#BE123C', strokeColor: '#FFE4E6', glowColor: 'rgba(244, 63, 94, 0.4)', eyeStyle: 'mischief', mouthStyle: 'grin' },
+      { id: 'ice', name: 'Ice Wraith', shape: 'tall', topColor: '#E0F2FE', midColor: '#BAE6FD', botColor: '#7DD3FC', strokeColor: '#F0F9FF', glowColor: 'rgba(186, 230, 253, 0.4)', eyeStyle: 'cool', mouthStyle: 'flat' },
+      { id: 'royal', name: 'Royal Phantom', shape: 'chubby', topColor: '#FDE68A', midColor: '#F59E0B', botColor: '#D97706', strokeColor: '#FEF3C7', glowColor: 'rgba(245, 158, 11, 0.4)', eyeStyle: 'starry', mouthStyle: 'smile' },
+      { id: 'cyber', name: 'Cyberpunk Neon', shape: 'spiky', topColor: '#22D3EE', midColor: '#06B6D4', botColor: '#0E7490', strokeColor: '#67E8F9', glowColor: 'rgba(34, 211, 238, 0.5)', eyeStyle: 'cyber', mouthStyle: 'grid' },
+      { id: 'toxic', name: 'Toxic Slime', shape: 'bloated', topColor: '#ACC810', midColor: '#65A30D', botColor: '#3F6212', strokeColor: '#ECFCCB', glowColor: 'rgba(101, 163, 13, 0.5)', eyeStyle: 'dizzy', mouthStyle: 'drool' },
+      { id: 'magma', name: 'Magma Fiend', shape: 'spiky', topColor: '#F97316', midColor: '#EA580C', botColor: '#9A3412', strokeColor: '#FFEDD5', glowColor: 'rgba(249, 115, 22, 0.5)', eyeStyle: 'mischief', mouthStyle: 'grin' },
+      { id: 'cotton', name: 'Cotton Candy', shape: 'wavy', topColor: '#FBCFE8', midColor: '#F472B6', botColor: '#EC4899', strokeColor: '#FFF1F2', glowColor: 'rgba(244, 114, 182, 0.5)', eyeStyle: 'cute', mouthStyle: 'smile' },
+      { id: 'celestial', name: 'Celestial Star', shape: 'star', topColor: '#818CF8', midColor: '#6366F1', botColor: '#312E81', strokeColor: '#C7D2FE', glowColor: 'rgba(99, 102, 241, 0.5)', eyeStyle: 'starry', mouthStyle: 'wide' },
+      { id: 'boba', name: 'Boba Milk Tea', shape: 'chubby', topColor: '#D7CCC8', midColor: '#A1887F', botColor: '#5D4037', strokeColor: '#EFEBE9', glowColor: 'rgba(161, 136, 127, 0.4)', eyeStyle: 'happy', mouthStyle: 'sip' },
+      { id: 'matrix', name: 'Matrix Code', shape: 'cubby', topColor: '#4ADE80', midColor: '#16A34A', botColor: '#14532D', strokeColor: '#DCFCE7', glowColor: 'rgba(74, 222, 128, 0.5)', eyeStyle: 'determined', mouthStyle: 'flat' },
+      { id: 'vampire', name: 'Vampire Lord', shape: 'skinny', topColor: '#991B1B', midColor: '#7F1D1D', botColor: '#450A0A', strokeColor: '#FCA5A5', glowColor: 'rgba(153, 27, 27, 0.5)', eyeStyle: 'mischief', mouthStyle: 'fangs' },
+      { id: 'sunflower', name: 'Sunflower Spirit', shape: 'standard', topColor: '#FEF08A', midColor: '#FACC15', botColor: '#CA8A04', strokeColor: '#FEFCE8', glowColor: 'rgba(250, 204, 21, 0.5)', eyeStyle: 'happy', mouthStyle: 'smile' },
+      { id: 'amethyst', name: 'Amethyst Shard', shape: 'spiky', topColor: '#E879F9', midColor: '#D946EF', botColor: '#86198F', strokeColor: '#FAD2E1', glowColor: 'rgba(217, 70, 239, 0.5)', eyeStyle: 'cool', mouthStyle: 'smirk' }
     ];
 
-    // 20 Silhouette Conveyor Tracks
+    // 20 Unique Silhouette Conveyor Tracks
     const TRACK_SKINS = [
       { id: 'cat', name: '🐱 Cat Face Silhouette', capacity: 18, outer: 'rgba(251, 191, 36, 0.25)', inner: 'rgba(245, 158, 11, 0.5)', dash: '#FEF3C7' },
       { id: 'panda', name: '🐼 Panda Face Silhouette', capacity: 18, outer: 'rgba(30, 41, 59, 0.4)', inner: 'rgba(71, 85, 105, 0.6)', dash: '#FFFFFF' },
@@ -524,7 +548,6 @@
       { id: 'grape', name: '🍇 Grape Cluster Silhouette', capacity: 18, outer: 'rgba(168, 85, 247, 0.25)', inner: 'rgba(126, 34, 206, 0.5)', dash: '#F3E8FF' }
     ];
 
-    // 30 Hats / Accessories Variants
     const ACCESSORIES = [
       { id: 'none', name: 'None', icon: '✨' },
       { id: 'wizard', name: 'Wizard Hat', icon: '🧙‍♂️' },
@@ -558,7 +581,6 @@
       { id: 'crown2', name: 'Diamond Crown', icon: '👑' }
     ];
 
-    // Achievements Definition
     const ACHIEVEMENTS_DEF = [
       { id: 'first_sort', name: 'Spooky Novice', desc: 'Sort your first 5 items correctly', target: 5, progressKey: 'sort_count', unlocked: false },
       { id: 'combo_master', name: 'Combo Fiend', desc: 'Reach a 5x Combo streak', target: 5, progressKey: 'max_combo', unlocked: false },
@@ -572,9 +594,8 @@
     let currentTrackSkin = localStorage.getItem('track_skin') || 'cat';
     let currentAccessory = localStorage.getItem('accessory') || 'none';
     let shapeAssistEnabled = localStorage.getItem('shape_assist') === 'true';
-    let currentGameMode = 'arcade'; // 'arcade' or 'timed'
+    let currentGameMode = 'arcade';
 
-    // Game state
     let canvas, ctx;
     let previewCanvas, previewCtx;
     let isPlaying = false;
@@ -582,7 +603,6 @@
     let hp = 100;
     let combo = 0;
     let highScore = localStorage.getItem('ghost_high_score') || 0;
-    let timeRemaining = 60; // For Timed Mode
 
     let itemsQueue = [];
     let batsList = [];
@@ -597,15 +617,18 @@
 
     let ghostState = 'idle';
     let ghostStateTimer = 0;
-    let feverTimer = 0; // Fever mode timer
+    let feverTimer = 0;
     let mouthPos = { x: 0, y: 0 };
 
     let pathPoints = [];
     let totalPathLength = 0;
 
-    // Power-up active timers
     let freezeTimer = 0;
     let multiplierTimer = 0;
+
+    // Boss Battle State
+    let activeBoss = null;
+    let nextBossScoreThreshold = 500;
 
     function resizeCanvas() {
       const main = document.querySelector('main');
@@ -665,171 +688,133 @@
           break;
         case 'bunny':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.4, y: h * 0.05 }, cp2: { x: w * 0.4, y: h * 0.25 }, to: { x: w * 0.45, y: h * 0.4 }, steps: 40 },
-            { from: { x: w * 0.45, y: h * 0.4 }, cp1: { x: w * 0.42, y: h * 0.15 }, cp2: { x: w * 0.35, y: h * 0.05 }, to: { x: w * 0.35, y: h * 0.2 }, steps: 35 },
-            { from: { x: w * 0.35, y: h * 0.2 }, cp1: { x: w * 0.55, y: h * 0.2 }, cp2: { x: w * 0.65, y: h * 0.05 }, to: { x: w * 0.65, y: h * 0.2 }, steps: 35 },
-            { from: { x: w * 0.65, y: h * 0.2 }, cp2: { x: w * 0.58, y: h * 0.15 }, cp1: { x: w * 0.55, y: h * 0.4 }, to: { x: w * 0.55, y: h * 0.4 }, steps: 35 },
-            { from: { x: w * 0.55, y: h * 0.4 }, cp1: { x: w * 0.6, y: h * 0.65 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+            { from: startTop, cp1: { x: w * 0.3, y: h * 0.02 }, cp2: { x: w * 0.35, y: h * 0.25 }, to: { x: w * 0.4, y: h * 0.35 }, steps: 35 },
+            { from: { x: w * 0.4, y: h * 0.35 }, cp1: { x: w * 0.3, y: h * 0.05 }, cp2: { x: w * 0.45, y: h * 0.02 }, to: { x: w * 0.5, y: h * 0.15 }, steps: 35 },
+            { from: { x: w * 0.5, y: h * 0.15 }, cp1: { x: w * 0.55, y: h * 0.02 }, cp2: { x: w * 0.7, y: h * 0.05 }, to: { x: w * 0.6, y: h * 0.35 }, steps: 35 },
+            { from: { x: w * 0.6, y: h * 0.35 }, cp1: { x: w * 0.65, y: h * 0.5 }, cp2: targetMouth, to: targetMouth, steps: 40 }
           ]);
           break;
         case 'fox':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.1, y: h * 0.1 }, cp2: { x: w * 0.2, y: h * 0.3 }, to: { x: w * 0.3, y: h * 0.2 }, steps: 40 },
-            { from: { x: w * 0.3, y: h * 0.2 }, cp1: { x: w * 0.4, y: h * 0.1 }, cp2: { x: w * 0.5, y: h * 0.05 }, to: { x: w * 0.5, y: h * 0.4 }, steps: 35 },
-            { from: { x: w * 0.5, y: h * 0.4 }, cp1: { x: w * 0.6, y: h * 0.05 }, cp2: { x: w * 0.6, y: h * 0.1 }, to: { x: w * 0.7, y: h * 0.2 }, steps: 35 },
-            { from: { x: w * 0.7, y: h * 0.2 }, cp1: { x: w * 0.8, y: h * 0.3 }, cp2: { x: w * 0.9, y: h * 0.1 }, to: { x: w * 0.6, y: h * 0.55 }, steps: 40 },
-            { from: { x: w * 0.6, y: h * 0.55 }, cp1: { x: w * 0.55, y: h * 0.65 }, cp2: targetMouth, to: targetMouth, steps: 35 }
+            { from: startTop, cp1: { x: w * 0.1, y: h * 0.1 }, cp2: { x: w * 0.25, y: h * 0.3 }, to: { x: w * 0.3, y: h * 0.4 }, steps: 35 },
+            { from: { x: w * 0.3, y: h * 0.4 }, cp1: { x: w * 0.4, y: h * 0.2 }, cp2: { x: w * 0.5, y: h * 0.1 }, to: { x: w * 0.5, y: h * 0.3 }, steps: 35 },
+            { from: { x: w * 0.5, y: h * 0.3 }, cp1: { x: w * 0.6, y: h * 0.2 }, cp2: { x: w * 0.7, y: h * 0.4 }, to: { x: w * 0.7, y: h * 0.4 }, steps: 35 },
+            { from: { x: w * 0.7, y: h * 0.4 }, cp1: { x: w * 0.8, y: h * 0.3 }, cp2: { x: w * 0.9, y: h * 0.1 }, to: { x: w * 0.6, y: h * 0.55 }, steps: 35 },
+            { from: { x: w * 0.6, y: h * 0.55 }, cp1: { x: w * 0.5, y: h * 0.65 }, cp2: targetMouth, to: targetMouth, steps: 30 }
           ]);
           break;
         case 'frog':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.2, y: h * 0.2 }, cp2: { x: w * 0.3, y: h * 0.1 }, to: { x: w * 0.35, y: h * 0.25 }, steps: 40 },
-            { from: { x: w * 0.35, y: h * 0.25 }, cp1: { x: w * 0.4, y: h * 0.4 }, cp2: { x: w * 0.45, y: h * 0.1 }, to: { x: w * 0.5, y: h * 0.25 }, steps: 35 },
-            { from: { x: w * 0.5, y: h * 0.25 }, cp1: { x: w * 0.55, y: h * 0.1 }, cp2: { x: w * 0.6, y: h * 0.4 }, to: { x: w * 0.65, y: h * 0.25 }, steps: 35 },
-            { from: { x: w * 0.65, y: h * 0.25 }, cp1: { x: w * 0.7, y: h * 0.1 }, cp2: { x: w * 0.8, y: h * 0.2 }, to: { x: w * 0.65, y: h * 0.5 }, steps: 40 },
-            { from: { x: w * 0.65, y: h * 0.5 }, cp1: { x: w * 0.55, y: h * 0.68 }, cp2: targetMouth, to: targetMouth, steps: 35 }
+            { from: startTop, cp1: { x: w * 0.3, y: h * 0.15 }, cp2: { x: w * 0.35, y: h * 0.3 }, to: { x: w * 0.38, y: h * 0.18 }, steps: 35 },
+            { from: { x: w * 0.38, y: h * 0.18 }, cp1: { x: w * 0.42, y: h * 0.05 }, cp2: { x: w * 0.48, y: h * 0.05 }, to: { x: w * 0.5, y: h * 0.25 }, steps: 35 },
+            { from: { x: w * 0.5, y: h * 0.25 }, cp1: { x: w * 0.52, y: h * 0.05 }, cp2: { x: w * 0.58, y: h * 0.05 }, to: { x: w * 0.62, y: h * 0.18 }, steps: 35 },
+            { from: { x: w * 0.62, y: h * 0.18 }, cp1: { x: w * 0.65, y: h * 0.3 }, cp2: { x: w * 0.7, y: h * 0.15 }, to: { x: w * 0.65, y: h * 0.5 }, steps: 35 },
+            { from: { x: w * 0.65, y: h * 0.5 }, cp1: { x: w * 0.55, y: h * 0.65 }, cp2: targetMouth, to: targetMouth, steps: 35 }
           ]);
           break;
         case 'train':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.2, y: h * 0.15 }, cp2: { x: w * 0.2, y: h * 0.4 }, to: { x: w * 0.4, y: h * 0.4 }, steps: 40 },
-            { from: { x: w * 0.4, y: h * 0.4 }, cp1: { x: w * 0.4, y: h * 0.2 }, cp2: { x: w * 0.45, y: h * 0.2 }, to: { x: w * 0.45, y: h * 0.4 }, steps: 30 },
-            { from: { x: w * 0.45, y: h * 0.4 }, cp1: { x: w * 0.6, y: h * 0.4 }, cp2: { x: w * 0.6, y: h * 0.2 }, to: { x: w * 0.7, y: h * 0.2 }, steps: 35 },
-            { from: { x: w * 0.7, y: h * 0.2 }, cp1: { x: w * 0.8, y: h * 0.2 }, cp2: { x: w * 0.8, y: h * 0.5 }, to: { x: w * 0.7, y: h * 0.5 }, steps: 35 },
-            { from: { x: w * 0.7, y: h * 0.5 }, cp1: { x: w * 0.6, y: h * 0.68 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+            { from: startTop, cp1: { x: w * 0.2, y: h * 0.15 }, cp2: { x: w * 0.8, y: h * 0.25 }, to: { x: w * 0.8, y: h * 0.35 }, steps: 40 },
+            { from: { x: w * 0.8, y: h * 0.35 }, cp1: { x: w * 0.5, y: h * 0.4 }, cp2: { x: w * 0.2, y: h * 0.45 }, to: { x: w * 0.2, y: h * 0.55 }, steps: 40 },
+            { from: { x: w * 0.2, y: h * 0.55 }, cp1: { x: w * 0.4, y: h * 0.6 }, cp2: targetMouth, to: targetMouth, steps: 40 }
           ]);
           break;
         case 'rocket':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.45, y: h * 0.1 }, cp2: { x: w * 0.55, y: h * 0.1 }, to: { x: w * 0.5, y: h * 0.35 }, steps: 40 },
-            { from: { x: w * 0.5, y: h * 0.35 }, cp1: { x: w * 0.35, y: h * 0.35 }, cp2: { x: w * 0.3, y: h * 0.5 }, to: { x: w * 0.45, y: h * 0.5 }, steps: 35 },
-            { from: { x: w * 0.45, y: h * 0.5 }, cp1: { x: w * 0.5, y: h * 0.3 }, cp2: { x: w * 0.5, y: h * 0.3 }, to: { x: w * 0.55, y: h * 0.5 }, steps: 30 },
-            { from: { x: w * 0.55, y: h * 0.5 }, cp1: { x: w * 0.7, y: h * 0.5 }, cp2: { x: w * 0.65, y: h * 0.35 }, to: { x: w * 0.5, y: h * 0.6 }, steps: 35 },
-            { from: { x: w * 0.5, y: h * 0.6 }, cp1: { x: w * 0.5, y: h * 0.7 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+            { from: startTop, cp1: { x: w * 0.5, y: h * 0.1 }, cp2: { x: w * 0.5, y: h * 0.2 }, to: { x: w * 0.4, y: h * 0.3 }, steps: 35 },
+            { from: { x: w * 0.4, y: h * 0.3 }, cp1: { x: w * 0.6, y: h * 0.3 }, cp2: { x: w * 0.6, y: h * 0.4 }, to: { x: w * 0.5, y: h * 0.5 }, steps: 35 },
+            { from: { x: w * 0.5, y: h * 0.5 }, cp1: { x: w * 0.45, y: h * 0.6 }, cp2: targetMouth, to: targetMouth, steps: 35 }
           ]);
           break;
         case 'car':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.2, y: h * 0.4 }, cp2: { x: w * 0.3, y: h * 0.4 }, to: { x: w * 0.4, y: h * 0.3 }, steps: 40 },
-            { from: { x: w * 0.4, y: h * 0.3 }, cp1: { x: w * 0.45, y: h * 0.2 }, cp2: { x: w * 0.55, y: h * 0.2 }, to: { x: w * 0.6, y: h * 0.3 }, steps: 35 },
-            { from: { x: w * 0.6, y: h * 0.3 }, cp1: { x: w * 0.7, y: h * 0.4 }, cp2: { x: w * 0.8, y: h * 0.4 }, to: { x: w * 0.85, y: h * 0.45 }, steps: 35 },
-            { from: { x: w * 0.85, y: h * 0.45 }, cp1: { x: w * 0.8, y: h * 0.2 }, cp2: { x: w * 0.75, y: h * 0.2 }, to: { x: w * 0.7, y: h * 0.45 }, steps: 30 },
-            { from: { x: w * 0.7, y: h * 0.45 }, cp1: { x: w * 0.6, y: h * 0.65 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+            { from: startTop, cp1: { x: w * 0.2, y: h * 0.2 }, cp2: { x: w * 0.3, y: h * 0.4 }, to: { x: w * 0.7, y: h * 0.4 }, steps: 40 },
+            { from: { x: w * 0.7, y: h * 0.4 }, cp1: { x: w * 0.8, y: h * 0.45 }, cp2: { x: w * 0.6, y: h * 0.55 }, to: { x: w * 0.3, y: h * 0.55 }, steps: 40 },
+            { from: { x: w * 0.3, y: h * 0.55 }, cp1: { x: w * 0.4, y: h * 0.65 }, cp2: targetMouth, to: targetMouth, steps: 35 }
           ]);
           break;
         case 'boat':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.4, y: h * 0.1 }, cp2: { x: w * 0.45, y: h * 0.3 }, to: { x: w * 0.5, y: h * 0.45 }, steps: 40 },
-            { from: { x: w * 0.5, y: h * 0.45 }, cp1: { x: w * 0.6, y: h * 0.2 }, cp2: { x: w * 0.65, y: h * 0.1 }, to: { x: w * 0.5, y: h * 0.45 }, steps: 40 },
-            { from: { x: w * 0.5, y: h * 0.45 }, cp1: { x: w * 0.3, y: h * 0.5 }, cp2: { x: w * 0.25, y: h * 0.55 }, to: { x: w * 0.75, y: h * 0.55 }, steps: 40 },
-            { from: { x: w * 0.75, y: h * 0.55 }, cp1: { x: w * 0.65, y: h * 0.68 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+            { from: startTop, cp1: { x: w * 0.5, y: h * 0.15 }, cp2: { x: w * 0.7, y: h * 0.25 }, to: { x: w * 0.6, y: h * 0.4 }, steps: 35 },
+            { from: { x: w * 0.6, y: h * 0.4 }, cp1: { x: w * 0.5, y: h * 0.5 }, cp2: { x: w * 0.3, y: h * 0.45 }, to: { x: w * 0.4, y: h * 0.3 }, steps: 35 },
+            { from: { x: w * 0.4, y: h * 0.3 }, cp1: { x: w * 0.45, y: h * 0.5 }, cp2: targetMouth, to: targetMouth, steps: 40 }
           ]);
           break;
         case 'plane':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.5, y: h * 0.1 }, cp2: { x: w * 0.5, y: h * 0.3 }, to: { x: w * 0.5, y: h * 0.5 }, steps: 40 },
-            { from: { x: w * 0.5, y: h * 0.5 }, cp1: { x: w * 0.3, y: h * 0.45 }, cp2: { x: w * 0.2, y: h * 0.4 }, to: { x: w * 0.5, y: h * 0.5 }, steps: 40 },
-            { from: { x: w * 0.5, y: h * 0.5 }, cp1: { x: w * 0.7, y: h * 0.45 }, cp2: { x: w * 0.8, y: h * 0.4 }, to: { x: w * 0.5, y: h * 0.55 }, steps: 40 },
-            { from: { x: w * 0.5, y: h * 0.55 }, cp1: { x: w * 0.4, y: h * 0.55 }, cp2: { x: w * 0.45, y: h * 0.35 }, to: { x: w * 0.5, y: h * 0.65 }, steps: 35 },
-            { from: { x: w * 0.5, y: h * 0.65 }, cp1: { x: w * 0.5, y: h * 0.72 }, cp2: targetMouth, to: targetMouth, steps: 35 }
+            { from: startTop, cp1: { x: w * 0.2, y: h * 0.1 }, cp2: { x: w * 0.8, y: h * 0.2 }, to: { x: w * 0.5, y: h * 0.35 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.35 }, cp1: { x: w * 0.2, y: h * 0.4 }, cp2: { x: w * 0.8, y: h * 0.5 }, to: { x: w * 0.5, y: h * 0.6 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.6 }, cp1: { x: w * 0.5, y: h * 0.65 }, cp2: targetMouth, to: targetMouth, steps: 30 }
           ]);
           break;
         case 'halloween':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.5, y: h * 0.1 }, cp2: { x: w * 0.45, y: h * 0.15 }, to: { x: w * 0.45, y: h * 0.25 }, steps: 35 },
-            { from: { x: w * 0.45, y: h * 0.25 }, cp1: { x: w * 0.25, y: h * 0.2 }, cp2: { x: w * 0.2, y: h * 0.45 }, to: { x: w * 0.3, y: h * 0.5 }, steps: 40 },
-            { from: { x: w * 0.3, y: h * 0.5 }, cp1: { x: w * 0.4, y: h * 0.55 }, cp2: { x: w * 0.5, y: h * 0.45 }, to: { x: w * 0.6, y: h * 0.5 }, steps: 35 },
-            { from: { x: w * 0.6, y: h * 0.5 }, cp1: { x: w * 0.8, y: h * 0.45 }, cp2: { x: w * 0.75, y: h * 0.2 }, to: { x: w * 0.55, y: h * 0.25 }, steps: 40 },
-            { from: { x: w * 0.55, y: h * 0.25 }, cp1: { x: w * 0.52, y: h * 0.65 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+            { from: startTop, cp1: { x: w * 0.2, y: h * 0.2 }, cp2: { x: w * 0.25, y: h * 0.45 }, to: { x: w * 0.35, y: h * 0.5 }, steps: 40 },
+            { from: { x: w * 0.35, y: h * 0.5 }, cp1: { x: w * 0.4, y: h * 0.35 }, cp2: { x: w * 0.5, y: h * 0.35 }, to: { x: w * 0.65, y: h * 0.5 }, steps: 40 },
+            { from: { x: w * 0.65, y: h * 0.5 }, cp1: { x: w * 0.75, y: h * 0.45 }, cp2: { x: w * 0.8, y: h * 0.2 }, to: { x: w * 0.5, y: h * 0.65 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.65 }, cp1: { x: w * 0.5, y: h * 0.7 }, cp2: targetMouth, to: targetMouth, steps: 30 }
           ]);
           break;
         case 'christmas':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.5, y: h * 0.1 }, cp2: { x: w * 0.3, y: h * 0.25 }, to: { x: w * 0.7, y: h * 0.25 }, steps: 45 },
-            { from: { x: w * 0.7, y: h * 0.25 }, cp1: { x: w * 0.5, y: h * 0.22 }, cp2: { x: w * 0.25, y: h * 0.4 }, to: { x: w * 0.75, y: h * 0.4 }, steps: 45 },
-            { from: { x: w * 0.75, y: h * 0.4 }, cp1: { x: w * 0.5, y: h * 0.38 }, cp2: { x: w * 0.2, y: h * 0.55 }, to: { x: w * 0.8, y: h * 0.55 }, steps: 45 },
-            { from: { x: w * 0.8, y: h * 0.55 }, cp1: { x: w * 0.55, y: h * 0.68 }, cp2: targetMouth, to: targetMouth, steps: 35 }
+            { from: startTop, cp1: { x: w * 0.5, y: h * 0.1 }, cp2: { x: w * 0.3, y: h * 0.2 }, to: { x: w * 0.7, y: h * 0.3 }, steps: 35 },
+            { from: { x: w * 0.7, y: h * 0.3 }, cp1: { x: w * 0.25, y: h * 0.4 }, cp2: { x: w * 0.75, y: h * 0.5 }, to: { x: w * 0.5, y: h * 0.6 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.6 }, cp1: { x: w * 0.5, y: h * 0.65 }, cp2: targetMouth, to: targetMouth, steps: 30 }
           ]);
           break;
         case 'valentine':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.3, y: h * 0.1 }, cp2: { x: w * 0.15, y: h * 0.3 }, to: { x: w * 0.5, y: h * 0.6 }, steps: 60 },
-            { from: { x: w * 0.5, y: h * 0.6 }, cp1: { x: w * 0.85, y: h * 0.3 }, cp2: { x: w * 0.7, y: h * 0.1 }, to: targetMouth, steps: 60 }
+            { from: startTop, cp1: { x: w * 0.2, y: h * 0.1 }, cp2: { x: w * 0.2, y: h * 0.35 }, to: { x: w * 0.5, y: h * 0.5 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.5 }, cp1: { x: w * 0.8, y: h * 0.35 }, cp2: { x: w * 0.8, y: h * 0.1 }, to: { x: w * 0.5, y: h * 0.25 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.25 }, cp1: { x: w * 0.5, y: h * 0.55 }, cp2: targetMouth, to: targetMouth, steps: 40 }
           ]);
           break;
         case 'easter':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.25, y: h * 0.15 }, cp2: { x: w * 0.2, y: h * 0.45 }, to: { x: w * 0.5, y: h * 0.65 }, steps: 60 },
-            { from: { x: w * 0.5, y: h * 0.65 }, cp1: { x: w * 0.8, y: h * 0.45 }, cp2: { x: w * 0.75, y: h * 0.15 }, to: targetMouth, steps: 60 }
+            { from: startTop, cp1: { x: w * 0.25, y: h * 0.2 }, cp2: { x: w * 0.25, y: h * 0.5 }, to: { x: w * 0.5, y: h * 0.6 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.6 }, cp1: { x: w * 0.75, y: h * 0.5 }, cp2: { x: w * 0.75, y: h * 0.2 }, to: { x: w * 0.5, y: h * 0.1 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.1 }, cp1: { x: w * 0.5, y: h * 0.5 }, cp2: targetMouth, to: targetMouth, steps: 35 }
           ]);
           break;
         case 'newyear':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.8, y: h * 0.2 }, cp2: { x: w * 0.2, y: h * 0.4 }, to: { x: w * 0.8, y: h * 0.4 }, steps: 40 },
-            { from: { x: w * 0.8, y: h * 0.4 }, cp1: { x: w * 0.2, y: h * 0.2 }, cp2: { x: w * 0.5, y: h * 0.6 }, to: { x: w * 0.5, y: h * 0.2 }, steps: 40 },
-            { from: { x: w * 0.5, y: h * 0.2 }, cp1: { x: w * 0.5, y: h * 0.6 }, cp2: { x: w * 0.3, y: h * 0.5 }, to: targetMouth, steps: 45 }
+            { from: startTop, cp1: { x: w * 0.2, y: h * 0.3 }, cp2: { x: w * 0.8, y: h * 0.3 }, to: { x: w * 0.3, y: h * 0.5 }, steps: 40 },
+            { from: { x: w * 0.3, y: h * 0.5 }, cp1: { x: w * 0.7, y: h * 0.1 }, cp2: { x: w * 0.7, y: h * 0.5 }, to: { x: w * 0.3, y: h * 0.3 }, steps: 40 },
+            { from: { x: w * 0.3, y: h * 0.3 }, cp1: { x: w * 0.5, y: h * 0.6 }, cp2: targetMouth, to: targetMouth, steps: 35 }
           ]);
           break;
         case 'watermelon':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.15, y: h * 0.3 }, cp2: { x: w * 0.2, y: h * 0.6 }, to: { x: w * 0.5, y: h * 0.65 }, steps: 50 },
-            { from: { x: w * 0.5, y: h * 0.65 }, cp1: { x: w * 0.8, y: h * 0.6 }, cp2: { x: w * 0.85, y: h * 0.3 }, to: { x: w * 0.5, y: h * 0.3 }, steps: 50 },
-            { from: { x: w * 0.5, y: h * 0.3 }, cp1: { x: w * 0.5, y: h * 0.5 }, cp2: targetMouth, to: targetMouth, steps: 35 }
+            { from: startTop, cp1: { x: w * 0.2, y: h * 0.2 }, cp2: { x: w * 0.2, y: h * 0.5 }, to: { x: w * 0.5, y: h * 0.6 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.6 }, cp1: { x: w * 0.8, y: h * 0.5 }, cp2: { x: w * 0.8, y: h * 0.2 }, to: { x: w * 0.5, y: h * 0.35 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.35 }, cp1: { x: w * 0.5, y: h * 0.55 }, cp2: targetMouth, to: targetMouth, steps: 35 }
           ]);
           break;
         case 'strawberry':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.3, y: h * 0.15 }, cp2: { x: w * 0.25, y: h * 0.35 }, to: { x: w * 0.5, y: h * 0.65 }, steps: 50 },
-            { from: { x: w * 0.5, y: h * 0.65 }, cp1: { x: w * 0.75, y: h * 0.35 }, cp2: { x: w * 0.7, y: h * 0.15 }, to: { x: w * 0.5, y: h * 0.2 }, steps: 50 },
-            { from: { x: w * 0.5, y: h * 0.2 }, cp1: { x: w * 0.5, y: h * 0.5 }, cp2: targetMouth, to: targetMouth, steps: 30 }
+            { from: startTop, cp1: { x: w * 0.3, y: h * 0.1 }, cp2: { x: w * 0.7, y: h * 0.1 }, to: { x: w * 0.6, y: h * 0.3 }, steps: 35 },
+            { from: { x: w * 0.6, y: h * 0.3 }, cp1: { x: w * 0.7, y: h * 0.5 }, cp2: { x: w * 0.5, y: h * 0.65 }, to: { x: w * 0.5, y: h * 0.65 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.65 }, cp1: { x: w * 0.4, y: h * 0.5 }, cp2: { x: w * 0.4, y: h * 0.3 }, to: targetMouth, steps: 40 }
           ]);
           break;
         case 'banana':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.1, y: h * 0.3 }, cp2: { x: w * 0.3, y: h * 0.65 }, to: { x: w * 0.8, y: h * 0.55 }, steps: 70 },
-            { from: { x: w * 0.8, y: h * 0.55 }, cp1: { x: w * 0.6, y: h * 0.68 }, cp2: targetMouth, to: targetMouth, steps: 40 }
+            { from: startTop, cp1: { x: w * 0.2, y: h * 0.2 }, cp2: { x: w * 0.3, y: h * 0.5 }, to: { x: w * 0.5, y: h * 0.6 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.6 }, cp1: { x: w * 0.6, y: h * 0.5 }, cp2: { x: w * 0.7, y: h * 0.3 }, to: targetMouth, steps: 40 }
           ]);
           break;
         case 'orange':
-          {
-            let len = 0;
-            let prevPt = startTop;
-            pathPoints.push({ ...prevPt, distance: 0 });
-            const stepsCount = 120;
-            for (let i = 1; i <= stepsCount; i++) {
-              const t = i / stepsCount;
-              const angle = t * Math.PI * 1.8 - Math.PI / 2;
-              const radius = w * 0.3;
-              const pt = {
-                x: (w / 2) + Math.cos(angle) * radius,
-                y: (h * 0.38) + Math.sin(angle) * radius
-              };
-              const dist = Math.hypot(pt.x - prevPt.x, pt.y - prevPt.y);
-              len += dist;
-              pathPoints.push({ ...pt, distance: len });
-              prevPt = pt;
-            }
-            const mouthSteps = 30;
-            for (let i = 1; i <= mouthSteps; i++) {
-              const t = i / mouthSteps;
-              const pt = {
-                x: prevPt.x + (targetMouth.x - prevPt.x) * t,
-                y: prevPt.y + (targetMouth.y - prevPt.y) * t
-              };
-              const dist = Math.hypot(pt.x - prevPt.x, pt.y - prevPt.y);
-              len += dist;
-              pathPoints.push({ ...pt, distance: len });
-              prevPt = pt;
-            }
-            totalPathLength = len;
-          }
+          buildPathFromSegments([
+            { from: startTop, cp1: { x: w * 0.15, y: h * 0.2 }, cp2: { x: w * 0.15, y: h * 0.5 }, to: { x: w * 0.5, y: h * 0.6 }, steps: 45 },
+            { from: { x: w * 0.5, y: h * 0.6 }, cp1: { x: w * 0.85, y: h * 0.5 }, cp2: { x: w * 0.85, y: h * 0.2 }, to: { x: w * 0.5, y: h * 0.1 }, steps: 45 },
+            { from: { x: w * 0.5, y: h * 0.1 }, cp1: { x: w * 0.5, y: h * 0.5 }, cp2: targetMouth, to: targetMouth, steps: 30 }
+          ]);
           break;
         case 'grape':
           buildPathFromSegments([
-            { from: startTop, cp1: { x: w * 0.35, y: h * 0.2 }, cp2: { x: w * 0.65, y: h * 0.2 }, to: { x: w * 0.5, y: h * 0.35 }, steps: 35 },
-            { from: { x: w * 0.5, y: h * 0.35 }, cp1: { x: w * 0.25, y: h * 0.35 }, cp2: { x: w * 0.25, y: h * 0.5 }, to: { x: w * 0.5, y: h * 0.55 }, steps: 35 },
-            { from: { x: w * 0.5, y: h * 0.55 }, cp1: { x: w * 0.75, y: h * 0.5 }, cp2: { x: w * 0.75, y: h * 0.6 }, to: { x: w * 0.5, y: h * 0.65 }, steps: 35 },
-            { from: { x: w * 0.5, y: h * 0.65 }, cp1: { x: w * 0.5, y: h * 0.72 }, cp2: targetMouth, to: targetMouth, steps: 35 }
+            { from: startTop, cp1: { x: w * 0.35, y: h * 0.15 }, cp2: { x: w * 0.65, y: h * 0.25 }, to: { x: w * 0.35, y: h * 0.35 }, steps: 35 },
+            { from: { x: w * 0.35, y: h * 0.35 }, cp1: { x: w * 0.65, y: h * 0.45 }, cp2: { x: w * 0.35, y: h * 0.55 }, to: { x: w * 0.5, y: h * 0.65 }, steps: 40 },
+            { from: { x: w * 0.5, y: h * 0.65 }, cp1: { x: w * 0.5, y: h * 0.7 }, cp2: targetMouth, to: targetMouth, steps: 30 }
           ]);
           break;
         default:
@@ -942,7 +927,7 @@
     function setGameMode(mode) {
       currentGameMode = mode;
       document.getElementById('mode-btn-arcade').className = mode === 'arcade' ? 'p-2 rounded-xl border text-center font-bold text-xs bg-indigo-950 border-indigo-500 text-white transition' : 'p-2 rounded-xl border text-center font-bold text-xs bg-slate-950 border-slate-800 text-slate-400 transition';
-      document.getElementById('mode-btn-timed').className = mode === 'timed' ? 'p-2 rounded-xl border text-center font-bold text-xs bg-indigo-950 border-indigo-500 text-white transition' : 'p-2 rounded-xl border text-center font-bold text-xs bg-slate-950 border-slate-800 text-slate-400 transition';
+      document.getElementById('mode-btn-boss').className = mode === 'boss' ? 'p-2 rounded-xl border text-center font-bold text-xs bg-indigo-950 border-indigo-500 text-white transition' : 'p-2 rounded-xl border text-center font-bold text-xs bg-slate-950 border-slate-800 text-slate-400 transition';
     }
 
     function toggleShapeAssist() {
@@ -977,9 +962,6 @@
           <span class="text-[11px] font-bold text-slate-200 truncate">${acc.name}</span>
         </button>
       `).join('');
-
-      document.getElementById('btn-shape-assist').innerText = shapeAssistEnabled ? 'ON' : 'OFF';
-      document.getElementById('btn-shape-assist').className = shapeAssistEnabled ? 'px-3 py-1 rounded-lg bg-indigo-600 text-xs font-bold text-white border border-indigo-400 transition' : 'px-3 py-1 rounded-lg bg-slate-800 text-xs font-bold text-slate-300 border border-slate-700 transition';
     }
 
     function buildAchievementsUI() {
@@ -1037,8 +1019,6 @@
         else if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 's' || e.key === 'S') {
           e.preventDefault();
           handleAction('eat');
-        } else if (e.key === 'p' || e.key === 'P') {
-          usePowerUp();
         }
       });
 
@@ -1048,7 +1028,6 @@
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
 
-        // Check if a bat was tapped directly!
         const touchX = e.touches[0].clientX - canvas.getBoundingClientRect().left;
         const touchY = e.touches[0].clientY - canvas.getBoundingClientRect().top;
         checkBatTap(touchX, touchY);
@@ -1095,7 +1074,6 @@
       score = 0;
       hp = 100;
       combo = 0;
-      timeRemaining = 60;
       itemsQueue = [];
       batsList = [];
       particlesList = [];
@@ -1105,25 +1083,21 @@
       spawnProgressTimer = 0;
       batSpawnTimer = 0;
       ghostState = 'idle';
-      activePowerUp = null;
       freezeTimer = 0;
       multiplierTimer = 0;
       feverTimer = 0;
+      activeBoss = null;
+      nextBossScoreThreshold = 500;
 
+      document.getElementById('boss-hud').classList.remove('flex');
+      document.getElementById('boss-hud').classList.add('hidden');
       updateHUD();
       updateBucketsUI();
-      updatePowerUpUI();
       generateTrackPath();
 
       document.getElementById('modal-overlay').classList.add('hidden');
       document.getElementById('screen-start').classList.add('hidden');
       document.getElementById('screen-gameover').classList.add('hidden');
-
-      if (currentGameMode === 'timed') {
-        document.getElementById('score-label').innerText = 'Time Left';
-      } else {
-        document.getElementById('score-label').innerText = 'Score';
-      }
 
       isPlaying = true;
       lastTime = performance.now();
@@ -1167,6 +1141,25 @@
       itemsQueue.push(newItem);
     }
 
+    function triggerBossSpawn() {
+      if (activeBoss) return; // Prevent spawning multiple bosses at once
+      const bTemplate = BOSSES_CATALOG[Math.floor(Math.random() * BOSSES_CATALOG.length)];
+      activeBoss = {
+        ...bTemplate,
+        hp: bTemplate.maxHp
+      };
+
+      document.getElementById('boss-emoji').innerText = activeBoss.emoji;
+      document.getElementById('boss-name').innerText = activeBoss.name;
+      document.getElementById('boss-hp').innerText = activeBoss.hp;
+      document.getElementById('boss-max-hp').innerText = activeBoss.maxHp;
+      document.getElementById('boss-hp-bar').style.width = '100%';
+      document.getElementById('boss-hud').classList.remove('hidden');
+      document.getElementById('boss-hud').classList.add('flex');
+
+      spawnFloatingText(canvas.width / 2, canvas.height / 2, `👑 ${activeBoss.name} APPEARED!`, '#F43F5E');
+    }
+
     function spawnBat() {
       batsList.push({
         x: Math.random() > 0.5 ? -20 : canvas.width + 20,
@@ -1178,36 +1171,22 @@
     }
 
     function update(dt) {
-      if (currentGameMode === 'timed') {
-        timeRemaining -= dt;
-        document.getElementById('score').innerText = `${Math.ceil(timeRemaining)}s`;
-        if (timeRemaining <= 0) {
-          triggerGameOver(`Time's up! Final Score: ${score}`);
-          return;
-        }
-      }
-
-      if (feverTimer > 0) {
-        feverTimer -= dt;
-      }
+      if (feverTimer > 0) feverTimer -= dt;
 
       let speedMultiplier = 1.0;
       if (freezeTimer > 0) {
         freezeTimer -= dt;
         speedMultiplier = 0.4;
       }
-      if (activePowerUp && activePowerUp.id === 'speed' || feverTimer > 0) {
-        speedMultiplier *= 1.4;
-      }
+      if (feverTimer > 0) speedMultiplier *= 1.4;
 
-      currentSpeed = (baseSpeed + (score / 200) * 0.05) * speedMultiplier;
-
-      if (multiplierTimer > 0) {
-        multiplierTimer -= dt;
-      }
+      // Fixed speed scaling so it caps reasonably and doesn't run away fast
+      const cappedScoreForSpeed = Math.min(score, 2000);
+      currentSpeed = (baseSpeed + (cappedScoreForSpeed / 400) * 0.04) * speedMultiplier;
+      if (multiplierTimer > 0) multiplierTimer -= dt;
 
       spawnProgressTimer += dt;
-      const spawnInterval = Math.max(0.65, 1.6 - (score / 250) * 0.2);
+      const spawnInterval = Math.max(0.65, 1.6 - (cappedScoreForSpeed / 500) * 0.2);
       if (spawnProgressTimer >= spawnInterval) {
         spawnItem();
         spawnProgressTimer = 0;
@@ -1219,7 +1198,6 @@
         batSpawnTimer = 0;
       }
 
-      // Update bats
       for (let i = batsList.length - 1; i >= 0; i--) {
         const bat = batsList[i];
         bat.x += bat.vx;
@@ -1231,7 +1209,6 @@
         }
       }
 
-      // Update particles
       for (let i = particlesList.length - 1; i >= 0; i--) {
         const p = particlesList[i];
         p.x += p.vx;
@@ -1270,15 +1247,38 @@
       }
     }
 
+    function activatePowerUpAutomatically(powerUpId) {
+      sound.playPowerUp();
+      const pObj = POWERUPS_CATALOG.find(p => p.id === powerUpId);
+      spawnFloatingText(mouthPos.x, mouthPos.y - 50, `${pObj.emoji} ${pObj.name}`, '#A855F7');
+
+      if (powerUpId === 'speed') {
+        multiplierTimer = 8;
+      } else if (powerUpId === 'magnet') {
+        if (itemsQueue.length > 0) {
+          addScore(15);
+          itemsQueue.shift();
+        }
+      } else if (powerUpId === 'bomb') {
+        const removedCount = Math.min(3, itemsQueue.length);
+        itemsQueue.splice(0, removedCount);
+        addScore(removedCount * 10);
+      } else if (powerUpId === 'heal') {
+        hp = Math.min(100, hp + 25);
+        updateHUD();
+      } else if (powerUpId === 'freeze') {
+        freezeTimer = 6;
+      } else if (powerUpId === 'multiplier') {
+        multiplierTimer = 8;
+      }
+    }
+
     function handleAction(action) {
       if (!isPlaying || itemsQueue.length === 0) return;
-      const currentItem = itemsQueue[0];
+      const currentItem = itemsQueue.shift(); // Shift item immediately to prevent double processing
 
       if (currentItem.category === ITEM_TYPES.POWERUP) {
-        sound.playPowerUp();
-        activePowerUp = POWERUPS_CATALOG.find(p => p.id === currentItem.powerUpId);
-        updatePowerUpUI();
-        itemsQueue.shift();
+        activatePowerUpAutomatically(currentItem.powerUpId);
         return;
       }
 
@@ -1289,12 +1289,10 @@
       );
 
       if (feverTimer > 0) {
-        // Fever mode auto corrects everything
         sound.playMunch();
         addScore(20);
         spawnParticles(mouthPos.x, mouthPos.y, '#F59E0B');
         spawnFloatingText(mouthPos.x, mouthPos.y - 30, 'FEVER +20!', '#FDE047');
-        itemsQueue.shift();
         return;
       }
 
@@ -1306,18 +1304,17 @@
           spawnFloatingText(mouthPos.x, mouthPos.y - 30, '+10', '#10B981');
           ghostState = 'eat';
           ghostStateTimer = 0.35;
-          itemsQueue.shift();
         } else {
           sound.playError();
           takeDamage(15, 'Oops! Casper ate something non-edible!');
           ghostState = 'damage';
           ghostStateTimer = 0.4;
-          itemsQueue.shift();
         }
       } else if (action === 'left') {
         if (leftBucketCount >= BUCKET_MAX) {
           sound.playError();
           shakeElement(document.getElementById('left-bucket'));
+          itemsQueue.unshift(currentItem); // Put item back if bucket is full
           return;
         }
         if (isCorrect) {
@@ -1327,18 +1324,17 @@
           spawnFloatingText(70, canvas.height - 80, '+10', '#3B82F6');
           leftBucketCount++;
           updateBucketsUI();
-          itemsQueue.shift();
         } else {
           sound.playError();
           takeDamage(10, 'Wrong bucket! Toys belong in the Blue Bin.');
           ghostState = 'damage';
           ghostStateTimer = 0.4;
-          itemsQueue.shift();
         }
       } else if (action === 'right') {
         if (rightBucketCount >= BUCKET_MAX) {
           sound.playError();
           shakeElement(document.getElementById('right-bucket'));
+          itemsQueue.unshift(currentItem); // Put item back if bucket is full
           return;
         }
         if (isCorrect) {
@@ -1348,60 +1344,37 @@
           spawnFloatingText(canvas.width - 70, canvas.height - 80, '+10', '#F59E0B');
           rightBucketCount++;
           updateBucketsUI();
-          itemsQueue.shift();
         } else {
           sound.playError();
           takeDamage(10, 'Wrong bucket! Trash belongs in the Amber Bin.');
           ghostState = 'damage';
           ghostStateTimer = 0.4;
-          itemsQueue.shift();
         }
       }
     }
 
-    function usePowerUp() {
-      if (!isPlaying || !activePowerUp) return;
-      sound.playPowerUp();
+    // Boss damage is now handled strictly once per successfully sorted item
+    function checkBossProgress() {
+      if (activeBoss) {
+        activeBoss.hp--;
+        document.getElementById('boss-hp').innerText = Math.max(0, activeBoss.hp);
+        document.getElementById('boss-hp-bar').style.width = `${(Math.max(0, activeBoss.hp) / activeBoss.maxHp) * 100}%`;
 
-      if (activePowerUp.id === 'speed') {
-        multiplierTimer = 8;
-      } else if (activePowerUp.id === 'magnet') {
-        if (itemsQueue.length > 0) {
-          addScore(15);
-          itemsQueue.shift();
+        if (activeBoss.hp <= 0) {
+          const reward = activeBoss.reward;
+          activeBoss = null;
+          document.getElementById('boss-hud').classList.remove('flex');
+          document.getElementById('boss-hud').classList.add('hidden');
+          
+          score += reward; // Award boss bonus directly without re-triggering combo loops
+          updateHUD();
+          spawnFloatingText(canvas.width / 2, canvas.height / 2, `🎉 BOSS DEFEATED! +${reward}`, '#FDE047');
         }
-      } else if (activePowerUp.id === 'bomb') {
-        const removedCount = Math.min(3, itemsQueue.length);
-        itemsQueue.splice(0, removedCount);
-        addScore(removedCount * 10);
-      } else if (activePowerUp.id === 'heal') {
-        hp = Math.min(100, hp + 25);
-        updateHUD();
-      } else if (activePowerUp.id === 'freeze') {
-        freezeTimer = 6;
-      } else if (activePowerUp.id === 'multiplier') {
-        multiplierTimer = 8;
-      }
-
-      activePowerUp = null;
-      updatePowerUpUI();
-    }
-
-    function updatePowerUpUI() {
-      const iconBox = document.getElementById('powerup-icon-box');
-      const nameEl = document.getElementById('powerup-name');
-      const btn = document.getElementById('btn-powerup');
-
-      if (activePowerUp) {
-        iconBox.innerText = activePowerUp.emoji;
-        nameEl.innerText = activePowerUp.name;
-        btn.classList.remove('opacity-50', 'cursor-not-allowed');
-        btn.classList.add('animate-pulse');
-      } else {
-        iconBox.innerText = '⚡';
-        nameEl.innerText = 'None Collected';
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
-        btn.classList.remove('animate-pulse');
+      } else if (currentGameMode === 'boss') {
+        if (score >= nextBossScoreThreshold) {
+          triggerBossSpawn();
+          nextBossScoreThreshold += 500;
+        }
       }
     }
 
@@ -1424,16 +1397,12 @@
       updateAchievementProgress('max_combo', combo);
 
       if (combo >= 10 && feverTimer <= 0) {
-        feverTimer = 8; // Trigger 8s Fever Mode!
+        feverTimer = 8;
         spawnFloatingText(mouthPos.x, mouthPos.y - 60, '🔥 FEVER MODE! 🔥', '#F43F5E');
       }
 
       let multiplier = (combo > 3 ? 2 : 1) * (multiplierTimer > 0 ? 2 : 1) * (feverTimer > 0 ? 2 : 1);
-      if (currentGameMode !== 'timed') {
-        score += points * multiplier;
-      } else {
-        score += points * multiplier; // in timed mode score acts as points earned
-      }
+      score += points * multiplier;
 
       updateAchievementProgress('high_roller', score);
       
@@ -1441,8 +1410,11 @@
       if (combo >= 3) {
         comboBadge.innerText = `${combo}x COMBO! 🔥`;
         comboBadge.classList.remove('opacity-0');
+      } else {
+        comboBadge.classList.add('opacity-0');
       }
       updateHUD();
+      checkBossProgress(); // Safely check/damage boss once per score event
     }
 
     function takeDamage(amount, reason) {
@@ -1455,13 +1427,11 @@
       canvasEl.classList.add('ghost-damage');
       setTimeout(() => canvasEl.classList.remove('ghost-damage'), 300);
 
-      if (hp <= 0 && currentGameMode === 'arcade') triggerGameOver(reason || 'Ghost lost all HP!');
+      if (hp <= 0) triggerGameOver(reason || 'Ghost lost all HP!');
     }
 
     function updateHUD() {
-      if (currentGameMode !== 'timed') {
-        document.getElementById('score').innerText = score;
-      }
+      document.getElementById('score').innerText = score;
       document.getElementById('hp-text').innerText = `${hp}%`;
       
       const hpBar = document.getElementById('hp-bar');
@@ -1710,54 +1680,191 @@
       targetCtx.ellipse(16, -22, 4.5, 2.5, 0, 0, Math.PI * 2);
       targetCtx.fill();
 
-      const drawEye = (eyeX, eyeY) => {
-        targetCtx.fillStyle = '#FFFFFF';
-        targetCtx.beginPath();
-        targetCtx.ellipse(eyeX, eyeY, 6.5, 9.5, 0, 0, Math.PI * 2);
-        targetCtx.fill();
-        targetCtx.strokeStyle = '#475569';
-        targetCtx.lineWidth = 1;
-        targetCtx.stroke();
+      const renderExpression = () => {
+        const eye = skin.eyeStyle || 'cute';
+        const mouth = skin.mouthStyle || 'smile';
 
-        targetCtx.fillStyle = '#7C3AED';
-        targetCtx.beginPath();
-        targetCtx.ellipse(eyeX + 0.5, eyeY + 0.5, 4, 6.5, 0, 0, Math.PI * 2);
-        targetCtx.fill();
+        if (state === 'eat') {
+          drawEyeShape(-10, -28, 'happy');
+          drawEyeShape(10, -28, 'happy');
+          drawMouthShape('eat');
+          return;
+        }
+        if (state === 'damage') {
+          drawEyeShape(-10, -28, 'dizzy');
+          drawEyeShape(10, -28, 'dizzy');
+          drawMouthShape('hurt');
+          return;
+        }
 
-        targetCtx.fillStyle = '#1E1B4B';
-        targetCtx.beginPath();
-        targetCtx.ellipse(eyeX + 0.5, eyeY + 1, 2.2, 4, 0, 0, Math.PI * 2);
-        targetCtx.fill();
-
-        targetCtx.fillStyle = '#FFFFFF';
-        targetCtx.beginPath();
-        targetCtx.arc(eyeX - 1.5, eyeY - 3, 1.8, 0, Math.PI * 2);
-        targetCtx.arc(eyeX + 1.2, eyeY + 1.5, 0.8, 0, Math.PI * 2);
-        targetCtx.fill();
+        drawEyeShape(-10, -28, eye);
+        drawEyeShape(10, -28, eye);
+        drawMouthShape(mouth);
       };
 
-      drawEye(-10, -28);
-      drawEye(10, -28);
+      const drawEyeShape = (ex, ey, type) => {
+        targetCtx.save();
+        targetCtx.strokeStyle = '#334155';
+        targetCtx.lineWidth = 1.5;
 
-      targetCtx.fillStyle = '#1E293B';
-      targetCtx.beginPath();
-      if (state === 'eat') {
-        targetCtx.arc(0, -16, 8, 0, Math.PI, false);
-        targetCtx.closePath();
-        targetCtx.fill();
-        targetCtx.fillStyle = '#F472B6';
-        targetCtx.beginPath();
-        targetCtx.arc(0, -13, 4, 0, Math.PI, false);
-        targetCtx.fill();
-      } else if (state === 'damage') {
-        targetCtx.ellipse(0, -16, 4.5, 6, 0, 0, Math.PI * 2);
-        targetCtx.fill();
-      } else {
-        targetCtx.arc(0, -18, 6, 0.1, Math.PI - 0.1, false);
-        targetCtx.lineWidth = 2;
+        if (type === 'wink') {
+          targetCtx.fillStyle = '#FFFFFF';
+          targetCtx.beginPath();
+          targetCtx.ellipse(ex, ey, 6, 9, 0, 0, Math.PI * 2);
+          targetCtx.fill();
+          targetCtx.stroke();
+          targetCtx.beginPath();
+          targetCtx.moveTo(ex - 4, ey);
+          targetCtx.quadraticCurveTo(ex, ey + 4, ex + 6, ey);
+          targetCtx.stroke();
+        } else if (type === 'starry') {
+          targetCtx.fillStyle = '#F59E0B';
+          targetCtx.beginPath();
+          targetCtx.arc(ex, ey, 7, 0, Math.PI * 2);
+          targetCtx.fill();
+          targetCtx.fillStyle = '#FFFFFF';
+          targetCtx.font = '10px sans-serif';
+          targetCtx.textAlign = 'center';
+          targetCtx.textBaseline = 'middle';
+          targetCtx.fillText('⭐', ex, ey);
+        } else if (type === 'sleepy') {
+          targetCtx.strokeStyle = '#1E293B';
+          targetCtx.lineWidth = 2;
+          targetCtx.beginPath();
+          targetCtx.moveTo(ex - 5, ey);
+          targetCtx.quadraticCurveTo(ex, ey - 4, ex + 5, ey);
+          targetCtx.stroke();
+        } else if (type === 'dizzy') {
+          targetCtx.fillStyle = '#EF4444';
+          targetCtx.font = '11px sans-serif';
+          targetCtx.textAlign = 'center';
+          targetCtx.textBaseline = 'middle';
+          targetCtx.fillText('💫', ex, ey);
+        } else if (type === 'cool') {
+          targetCtx.fillStyle = '#0F172A';
+          targetCtx.beginPath();
+          targetCtx.roundRect(ex - 7, ey - 4, 14, 8, 3);
+          targetCtx.fill();
+        } else if (type === 'mischief' || type === 'determined') {
+          targetCtx.strokeStyle = '#1E293B';
+          targetCtx.lineWidth = 2;
+          targetCtx.beginPath();
+          targetCtx.moveTo(ex - 5, ey - 3);
+          targetCtx.lineTo(ex + 5, ey + 2);
+          targetCtx.stroke();
+        } else if (type === 'cyber') {
+          targetCtx.fillStyle = '#22D3EE';
+          targetCtx.fillRect(ex - 6, ey - 3, 12, 6);
+        } else if (type === 'shocked') {
+          targetCtx.fillStyle = '#FFFFFF';
+          targetCtx.beginPath();
+          targetCtx.arc(ex, ey, 7, 0, Math.PI * 2);
+          targetCtx.fill();
+          targetCtx.stroke();
+          targetCtx.fillStyle = '#0F172A';
+          targetCtx.beginPath();
+          targetCtx.arc(ex, ey, 3, 0, Math.PI * 2);
+          targetCtx.fill();
+        } else {
+          targetCtx.fillStyle = '#FFFFFF';
+          targetCtx.beginPath();
+          targetCtx.ellipse(ex, ey, 6.5, 9.5, 0, 0, Math.PI * 2);
+          targetCtx.fill();
+          targetCtx.stroke();
+
+          targetCtx.fillStyle = '#7C3AED';
+          targetCtx.beginPath();
+          targetCtx.ellipse(ex + 0.5, ey + 0.5, 4, 6.5, 0, 0, Math.PI * 2);
+          targetCtx.fill();
+
+          targetCtx.fillStyle = '#1E1B4B';
+          targetCtx.beginPath();
+          targetCtx.ellipse(ex + 0.5, ey + 1, 2.2, 4, 0, 0, Math.PI * 2);
+          targetCtx.fill();
+
+          targetCtx.fillStyle = '#FFFFFF';
+          targetCtx.beginPath();
+          targetCtx.arc(ex - 1.5, ey - 3, 1.8, 0, Math.PI * 2);
+          targetCtx.fill();
+        }
+        targetCtx.restore();
+      };
+
+      const drawMouthShape = (type) => {
+        targetCtx.save();
+        targetCtx.fillStyle = '#1E293B';
         targetCtx.strokeStyle = '#1E293B';
-        targetCtx.stroke();
-      }
+        targetCtx.lineWidth = 2;
+
+        if (type === 'eat') {
+          targetCtx.beginPath();
+          targetCtx.arc(0, -16, 8, 0, Math.PI, false);
+          targetCtx.closePath();
+          targetCtx.fill();
+          targetCtx.fillStyle = '#F472B6';
+          targetCtx.beginPath();
+          targetCtx.arc(0, -13, 4, 0, Math.PI, false);
+          targetCtx.fill();
+        } else if (type === 'hurt') {
+          targetCtx.beginPath();
+          targetCtx.ellipse(0, -16, 4.5, 6, 0, 0, Math.PI * 2);
+          targetCtx.fill();
+        } else if (type === 'smirk' || type === 'grin') {
+          targetCtx.beginPath();
+          targetCtx.arc(0, -18, 6, 0.2, Math.PI - 0.2, false);
+          targetCtx.stroke();
+        } else if (type === 'wide') {
+          targetCtx.beginPath();
+          targetCtx.ellipse(0, -15, 6, 8, 0, 0, Math.PI * 2);
+          targetCtx.fill();
+        } else if (type === 'flat') {
+          targetCtx.beginPath();
+          targetCtx.moveTo(-5, -16);
+          targetCtx.lineTo(5, -16);
+          targetCtx.stroke();
+        } else if (type === 'chill' || type === 'sip') {
+          targetCtx.beginPath();
+          targetCtx.arc(0, -18, 3, 0, Math.PI * 2);
+          targetCtx.fill();
+        } else if (type === 'wavy') {
+          targetCtx.beginPath();
+          targetCtx.moveTo(-5, -16);
+          targetCtx.quadraticCurveTo(-2, -20, 0, -16);
+          targetCtx.quadraticCurveTo(2, -12, 5, -16);
+          targetCtx.stroke();
+        } else if (type === 'bubble') {
+          targetCtx.beginPath();
+          targetCtx.arc(0, -15, 5, 0, Math.PI * 2);
+          targetCtx.stroke();
+        } else if (type === 'grid') {
+          targetCtx.fillStyle = '#22D3EE';
+          targetCtx.fillRect(-5, -18, 10, 4);
+        } else if (type === 'drool') {
+          targetCtx.beginPath();
+          targetCtx.arc(0, -16, 5, 0, Math.PI, false);
+          targetCtx.fill();
+          targetCtx.fillStyle = '#84CC16';
+          targetCtx.beginPath();
+          targetCtx.arc(2, -10, 2, 0, Math.PI * 2);
+          targetCtx.fill();
+        } else if (type === 'fangs') {
+          targetCtx.beginPath();
+          targetCtx.arc(0, -18, 6, 0, Math.PI, false);
+          targetCtx.fill();
+          targetCtx.fillStyle = '#FFFFFF';
+          targetCtx.beginPath();
+          targetCtx.moveTo(-3, -18); targetCtx.lineTo(-2, -13); targetCtx.lineTo(-1, -18);
+          targetCtx.moveTo(1, -18); targetCtx.lineTo(2, -13); targetCtx.lineTo(3, -18);
+          targetCtx.fill();
+        } else {
+          targetCtx.beginPath();
+          targetCtx.arc(0, -18, 6, 0.1, Math.PI - 0.1, false);
+          targetCtx.stroke();
+        }
+        targetCtx.restore();
+      };
+
+      renderExpression();
 
       if (accessoryId !== 'none') {
         targetCtx.font = '20px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
@@ -1815,7 +1922,6 @@
         ctx.textBaseline = 'middle';
         ctx.fillText(item.emoji, 0, -2);
 
-        // Render Shape Assist symbol if enabled
         if (shapeAssistEnabled) {
           ctx.fillStyle = '#FFFFFF';
           ctx.font = 'bold 11px sans-serif';
